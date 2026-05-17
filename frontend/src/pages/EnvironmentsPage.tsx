@@ -14,11 +14,11 @@ export default function EnvironmentsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Add Env form
+  
   const [showAddEnv, setShowAddEnv] = useState(false);
   const [newEnvName, setNewEnvName] = useState('');
 
-  // Add/Edit Variable form
+  
   const [showVarForm, setShowVarForm] = useState(false);
   const [editingVar, setEditingVar] = useState<domain.EnvVariable | null>(null);
   const [varForm, setVarForm] = useState({ key: '', value: '', description: '', is_secret: false });
@@ -35,7 +35,7 @@ export default function EnvironmentsPage() {
       const active = data?.find(e => e.is_active);
       if (active) setActiveEnvId(active.id);
       
-      // If nothing selected, select the active one or the first one
+      
       if (!selectedEnvId && data && data.length > 0) {
         setSelectedEnvId(active ? active.id : data[0].id);
       }
@@ -133,7 +133,7 @@ export default function EnvironmentsPage() {
 
       <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
         
-        {/* LEFT PANEL: Environments List */}
+        {}
         <div className="glass-card" style={{ width: '260px', display: 'flex', flexDirection: 'column', padding: '16px', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--text-primary)' }}>Environments</span>
@@ -201,7 +201,7 @@ export default function EnvironmentsPage() {
           </div>
         </div>
 
-        {/* RIGHT PANEL: Variables */}
+        {}
         <div className="glass-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, minWidth: 0, overflow: 'hidden' }}>
           {selectedEnv ? (
             <>

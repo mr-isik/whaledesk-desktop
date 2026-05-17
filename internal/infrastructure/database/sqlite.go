@@ -9,25 +9,20 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// SQLiteDB, SQLite veritabanıyla iletişimi sağlar.
-// DatabasePort interface'ini implemente eder.
 type SQLiteDB struct {
 	db *sql.DB
 }
 
-// NewSQLiteDB, yeni bir SQLite bağlantısı açar ve tabloları oluşturur.
 func NewSQLiteDB(dsn string) (*SQLiteDB, error) {
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	// Bağlantıyı test et
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
 
-	// WAL modu ile performansı artır
 	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
 		return nil, err
 	}
@@ -39,7 +34,6 @@ func NewSQLiteDB(dsn string) (*SQLiteDB, error) {
 	return store, nil
 }
 
-// migrate, gerekli tabloları oluşturur (idempotent).
 func (s *SQLiteDB) migrate() error {
 	const schema = `
 CREATE TABLE IF NOT EXISTS api_requests (
@@ -76,7 +70,6 @@ CREATE TABLE IF NOT EXISTS env_variables (
 	return err
 }
 
-// SaveAPIRequest, bir API isteği kaydını veritabanına ekler.
 func (s *SQLiteDB) SaveAPIRequest(ctx context.Context, req *domain.APIRequest) error {
 	const q = `
 INSERT INTO api_requests (url, method, payload, response, status, created_at)
@@ -102,7 +95,6 @@ VALUES (?, ?, ?, ?, ?, ?)`
 	return nil
 }
 
-// GetAPIRequests, en son 200 API isteğini döndürür (en yeniden en eskiye).
 func (s *SQLiteDB) GetAPIRequests(ctx context.Context) ([]domain.APIRequest, error) {
 	const q = `
 SELECT id, url, method, payload, response, status, created_at
@@ -131,42 +123,33 @@ LIMIT 200`
 		); err != nil {
 			return nil, err
 		}
-		// SQLite'dan gelen zaman string'ini parse et
+
 		r.CreatedAt, _ = time.Parse("2006-01-02T15:04:05Z", createdAt)
 		result = append(result, r)
 	}
 	return result, rows.Err()
 }
 
-// DeleteAPIRequest, belirtilen ID'ye sahip kaydı siler.
 func (s *SQLiteDB) DeleteAPIRequest(ctx context.Context, id int) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM api_requests WHERE id = ?", id)
 	return err
 }
 
-// ClearAPIRequests, tüm API isteği geçmişini temizler.
 func (s *SQLiteDB) ClearAPIRequests(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM api_requests")
 	return err
 }
 
-// Close, veritabanı bağlantısını kapatır.
 func (s *SQLiteDB) Close() error {
 	return s.db.Close()
 }
 
-// =============================================================================
-// Environment CRUD
-// =============================================================================
-
-// CreateEnvironment, yeni bir ortam kaydeder.
 func (s *SQLiteDB) CreateEnvironment(ctx context.Context, env *domain.Environment) error {
 	const q = `INSERT INTO environments (id, name, is_active, created_at) VALUES (?, ?, ?, ?)`
 	_, err := s.db.ExecContext(ctx, q, env.ID, env.Name, 0, env.CreatedAt.UTC())
 	return err
 }
 
-// ListEnvironments, tüm ortamları listeler (değişkenler dahil değil).
 func (s *SQLiteDB) ListEnvironments(ctx context.Context) ([]domain.Environment, error) {
 	const q = `SELECT id, name, is_active, created_at FROM environments ORDER BY created_at ASC`
 	rows, err := s.db.QueryContext(ctx, q)
@@ -190,20 +173,17 @@ func (s *SQLiteDB) ListEnvironments(ctx context.Context) ([]domain.Environment, 
 	return result, rows.Err()
 }
 
-// DeleteEnvironment, belirtilen ortamı siler (ON DELETE CASCADE ile değişkenler de silinir).
 func (s *SQLiteDB) DeleteEnvironment(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM environments WHERE id = ?", id)
 	return err
 }
 
-// SetActiveEnvironment, tek bir ortamı aktif yapar; diğer tüm ortamları pasif eder.
-// Tutarlılık için transaction kullanır.
 func (s *SQLiteDB) SetActiveEnvironment(ctx context.Context, id string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx, "UPDATE environments SET is_active = 0"); err != nil {
 		return err
@@ -214,7 +194,6 @@ func (s *SQLiteDB) SetActiveEnvironment(ctx context.Context, id string) error {
 	return tx.Commit()
 }
 
-// GetActiveEnvironmentID, aktif ortamın ID'sini döndürür.
 func (s *SQLiteDB) GetActiveEnvironmentID(ctx context.Context) (string, error) {
 	var id string
 	err := s.db.QueryRowContext(ctx, "SELECT id FROM environments WHERE is_active = 1 LIMIT 1").Scan(&id)
@@ -224,12 +203,6 @@ func (s *SQLiteDB) GetActiveEnvironmentID(ctx context.Context) (string, error) {
 	return id, err
 }
 
-// =============================================================================
-// EnvVariable CRUD
-// =============================================================================
-
-// AddVariable, ortama yeni bir değişken ekler.
-// encryptedValue: usecase tarafından şifrelenmiş değer (ham değil).
 func (s *SQLiteDB) AddVariable(ctx context.Context, v *domain.EnvVariable, encryptedValue string) error {
 	const q = `INSERT INTO env_variables (id, env_id, key, value_enc, is_secret, description)
 			   VALUES (?, ?, ?, ?, ?, ?)`
@@ -241,7 +214,6 @@ func (s *SQLiteDB) AddVariable(ctx context.Context, v *domain.EnvVariable, encry
 	return err
 }
 
-// UpdateVariable, mevcut bir değişkeni günceller.
 func (s *SQLiteDB) UpdateVariable(ctx context.Context, varID string, encryptedValue string, v *domain.EnvVariable) error {
 	const q = `UPDATE env_variables SET key = ?, value_enc = ?, is_secret = ?, description = ? WHERE id = ?`
 	isSecret := 0
@@ -252,14 +224,11 @@ func (s *SQLiteDB) UpdateVariable(ctx context.Context, varID string, encryptedVa
 	return err
 }
 
-// DeleteVariable, belirtilen değişkeni siler.
 func (s *SQLiteDB) DeleteVariable(ctx context.Context, varID string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM env_variables WHERE id = ?", varID)
 	return err
 }
 
-// GetVariables, belirtilen ortama ait tüm değişkenleri döndürür.
-// UYARI: Value alanı AES-GCM ile şifreli değer taşır; usecase şifre çözmelidir.
 func (s *SQLiteDB) GetVariables(ctx context.Context, envID string) ([]domain.EnvVariable, error) {
 	const q = `SELECT id, env_id, key, value_enc, is_secret, description
 	           FROM env_variables WHERE env_id = ? ORDER BY key ASC`

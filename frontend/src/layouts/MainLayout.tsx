@@ -8,7 +8,7 @@ import DbManagerPage from "../pages/DbManagerPage";
 import EnvironmentsPage from "../pages/EnvironmentsPage";
 import "./MainLayout.css";
 
-// Importing pages (we'll create these next)
+
 
 type PageType = "dashboard" | "containers" | "api" | "logs" | "db" | "envs";
 
@@ -92,10 +92,10 @@ export default function MainLayout() {
           </div>
         </nav>
 
-        {/* Spacer */}
+        {}
         <div style={{ flex: 1 }}></div>
 
-        {/* Bottom settings item */}
+        {}
         <div className="nav-item">
           <Settings size={20} />
           <span>Settings</span>

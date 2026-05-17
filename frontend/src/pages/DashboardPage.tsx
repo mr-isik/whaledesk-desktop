@@ -15,7 +15,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    // Auto refresh every 5 seconds
+    
     const interval = setInterval(fetchDashboardData, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -58,7 +58,7 @@ export default function DashboardPage() {
             gap: "16px",
           }}
         >
-          {/* Daemon Status Card */}
+          {}
           <div className="glass-card">
             <div
               style={{
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Containers Card */}
+          {}
           <div className="glass-card">
             <div
               style={{
@@ -141,7 +141,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* API Requests Card */}
+          {}
           <div className="glass-card">
             <div
               style={{

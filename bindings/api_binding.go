@@ -17,7 +17,6 @@ func NewAPIBinding(uc *usecase.APIUsecase) *APIBinding {
 	}
 }
 
-// Startup is called at application startup
 func (b *APIBinding) Startup(ctx context.Context) {
 	b.ctx = ctx
 }

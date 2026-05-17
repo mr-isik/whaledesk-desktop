@@ -12,12 +12,12 @@ export default function ApiTesterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Environment state
+  
   const [environments, setEnvironments] = useState<domain.Environment[]>([]);
   const [activeEnv, setActiveEnv] = useState<domain.Environment | null>(null);
   const [showEnvDropdown, setShowEnvDropdown] = useState(false);
   
-  // Variables Panel
+  
   const [searchVar, setSearchVar] = useState('');
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
 
@@ -52,7 +52,7 @@ export default function ApiTesterPage() {
     setError('');
     
     try {
-      // If there's no active environment, use the standard request, otherwise use EnvBinding
+      
       let res;
       if (activeEnv) {
         res = await ExecuteRequestWithEnv(method, url, payload);
@@ -76,7 +76,7 @@ export default function ApiTesterPage() {
 
   const insertVariable = (key: string) => {
     const formatted = `{{${key}}}`;
-    // A simple approach: append to URL if it's empty, otherwise user probably copies it
+    
     navigator.clipboard.writeText(formatted);
     setCopiedVar(key);
     setTimeout(() => setCopiedVar(null), 2000);
@@ -90,7 +90,7 @@ export default function ApiTesterPage() {
   return (
     <div style={{ display: 'flex', gap: '16px', height: '100%' }}>
       
-      {/* MAIN TESTER AREA */}
+      {}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
@@ -98,7 +98,7 @@ export default function ApiTesterPage() {
             <p className="page-subtitle" style={{ marginBottom: 0 }}>Send HTTP requests and test your services</p>
           </div>
 
-          {/* Environment Selector */}
+          {}
           <div style={{ position: 'relative' }}>
             <div 
               className="glass-card" 
@@ -115,7 +115,7 @@ export default function ApiTesterPage() {
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', paddingLeft: '8px' }}>Select Environment</div>
                 <div 
                   style={{ padding: '6px 8px', fontSize: '12px', cursor: 'pointer', borderRadius: 'var(--radius-sm)', background: !activeEnv ? 'var(--bg-secondary)' : 'transparent' }}
-                  onClick={() => handleEnvChange('')} // Clear env logic can be added if needed, but selecting another is fine. Actually SetActiveEnvironment("") might fail, we will just keep existing. 
+                  onClick={() => handleEnvChange('')} 
                 >
                   None
                 </div>
@@ -183,7 +183,7 @@ export default function ApiTesterPage() {
           </div>
         </div>
 
-        {/* Response Area */}
+        {}
         {error && (
           <div className="glass-card" style={{ background: 'var(--danger-bg)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', marginBottom: '16px' }}>
             <AlertCircle size={16} />
@@ -220,7 +220,7 @@ export default function ApiTesterPage() {
         )}
       </div>
 
-      {/* RIGHT SIDEBAR: VARIABLES PANEL */}
+      {}
       <div className="glass-card" style={{ width: '280px', display: 'flex', flexDirection: 'column', padding: '16px', overflow: 'hidden' }}>
         <h3 style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 16px 0', color: 'var(--text-primary)' }}>Variables Explorer</h3>
         

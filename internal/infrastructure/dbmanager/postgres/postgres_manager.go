@@ -13,20 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresManager, DbManagerPort interface'ini PostgreSQL için implemente eder.
 type PostgresManager struct {
 	pool *pgxpool.Pool
 }
 
-// NewPostgresManager, boş bir PostgresManager oluşturur.
-// Bağlantı açmaz; bağlantı için Connect() metodunu kullanın.
 func NewPostgresManager() *PostgresManager {
 	return &PostgresManager{}
 }
 
-// Connect, verilen DbConnection ile PostgreSQL'e bağlanır.
 func (p *PostgresManager) Connect(ctx context.Context, conn domain.DbConnection) error {
-	// Önce varsa eski bağlantıyı kapat
+
 	if p.pool != nil {
 		p.pool.Close()
 	}
@@ -40,27 +36,25 @@ func (p *PostgresManager) Connect(ctx context.Context, conn domain.DbConnection)
 
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return fmt.Errorf("bağlantı konfigürasyonu hatalı: %w", err)
+		return fmt.Errorf("invalid connection configuration: %w", err)
 	}
 
 	cfg.MaxConns = 5
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
-		return fmt.Errorf("veritabanına bağlanılamadı: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Bağlantıyı doğrula
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return fmt.Errorf("veritabanına ping atılamadı: %w", err)
+		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	p.pool = pool
 	return nil
 }
 
-// Disconnect, aktif bağlantı havuzunu kapatır.
 func (p *PostgresManager) Disconnect(_ context.Context) error {
 	if p.pool != nil {
 		p.pool.Close()
@@ -69,15 +63,13 @@ func (p *PostgresManager) Disconnect(_ context.Context) error {
 	return nil
 }
 
-// Ping, bağlantının sağlıklı olup olmadığını test eder.
 func (p *PostgresManager) Ping(ctx context.Context) error {
 	if p.pool == nil {
-		return fmt.Errorf("aktif bir veritabanı bağlantısı yok")
+		return fmt.Errorf("no active database connection")
 	}
 	return p.pool.Ping(ctx)
 }
 
-// ListDatabases, sunucudaki kullanıcı veritabanlarını listeler.
 func (p *PostgresManager) ListDatabases(ctx context.Context) ([]domain.DbDatabase, error) {
 	if err := p.checkConnection(); err != nil {
 		return nil, err
@@ -91,7 +83,7 @@ ORDER BY datname`
 
 	rows, err := p.pool.Query(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("veritabanları listelenemedi: %w", err)
+		return nil, fmt.Errorf("failed to list databases: %w", err)
 	}
 	defer rows.Close()
 
@@ -106,7 +98,6 @@ ORDER BY datname`
 	return result, rows.Err()
 }
 
-// ListSchemas, bağlı veritabanındaki kullanıcı şemalarını listeler.
 func (p *PostgresManager) ListSchemas(ctx context.Context) ([]domain.DbSchema, error) {
 	if err := p.checkConnection(); err != nil {
 		return nil, err
@@ -120,7 +111,7 @@ ORDER BY schema_name`
 
 	rows, err := p.pool.Query(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("şemalar listelenemedi: %w", err)
+		return nil, fmt.Errorf("failed to list schemas: %w", err)
 	}
 	defer rows.Close()
 
@@ -135,7 +126,6 @@ ORDER BY schema_name`
 	return result, rows.Err()
 }
 
-// ListTables, belirtilen şemadaki tabloları ve görünümleri listeler.
 func (p *PostgresManager) ListTables(ctx context.Context, schema string) ([]domain.DbTable, error) {
 	if err := p.checkConnection(); err != nil {
 		return nil, err
@@ -164,7 +154,6 @@ ORDER BY table_name`
 	return result, rows.Err()
 }
 
-// DescribeTable, bir tablonun sütun bilgilerini ve primary key/unique kısıtlamalarını döndürür.
 func (p *PostgresManager) DescribeTable(ctx context.Context, schema, table string) ([]domain.DbColumn, error) {
 	if err := p.checkConnection(); err != nil {
 		return nil, err
@@ -193,7 +182,7 @@ ORDER BY c.ordinal_position`
 
 	rows, err := p.pool.Query(ctx, q, schema, table)
 	if err != nil {
-		return nil, fmt.Errorf("tablo açıklaması alınamadı: %w", err)
+		return nil, fmt.Errorf("failed to get table description: %w", err)
 	}
 	defer rows.Close()
 
@@ -215,8 +204,6 @@ ORDER BY c.ordinal_position`
 	return result, rows.Err()
 }
 
-// ExecuteQuery, ham bir SQL sorgusu çalıştırır.
-// SELECT için satırları, DML için etkilenen satır sayısını döndürür.
 func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*domain.QueryResult, error) {
 	if err := p.checkConnection(); err != nil {
 		return nil, err
@@ -224,19 +211,17 @@ func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*doma
 
 	rows, err := p.pool.Query(ctx, query)
 	if err != nil {
-		// Sorgu hatasını domain modeline yansıt; Go hatasına dönüştürme
+
 		return &domain.QueryResult{ErrorMessage: err.Error()}, nil
 	}
 	defer rows.Close()
 
-	// Kolon isimlerini al
 	fields := rows.FieldDescriptions()
 	colNames := make([]string, len(fields))
 	for i, f := range fields {
 		colNames[i] = string(f.Name)
 	}
 
-	// Tüm satırları topla
 	var resultRows [][]interface{}
 	for rows.Next() {
 		vals, err := rows.Values()
@@ -249,7 +234,6 @@ func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*doma
 		return &domain.QueryResult{ErrorMessage: err.Error()}, nil
 	}
 
-	// pgx, DML için CommandTag üretir
 	tag := rows.CommandTag()
 	return &domain.QueryResult{
 		Columns:      colNames,
@@ -258,15 +242,13 @@ func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*doma
 	}, nil
 }
 
-// checkConnection, aktif bir bağlantı olup olmadığını doğrulayan yardımcı metottur.
 func (p *PostgresManager) checkConnection() error {
 	if p.pool == nil {
-		return fmt.Errorf("veritabanına bağlı değilsiniz; önce Connect() çağrısı yapın")
+		return fmt.Errorf("not connected to database; call Connect() first")
 	}
 	return nil
 }
 
-// collectRows, pgx.Rows'u tek satır slice'ına çeker (yardımcı).
 func collectRows[T any](rows pgx.Rows, scanFn func(pgx.CollectableRow) (T, error)) ([]T, error) {
 	return pgx.CollectRows(rows, scanFn)
 }

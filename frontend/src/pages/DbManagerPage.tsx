@@ -13,20 +13,20 @@ export default function DbManagerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Form state
+  
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: 'Local Postgres', type: 'postgres', host: 'localhost', port: 5432, 
     user: 'postgres', password: '', database: 'postgres', ssl_mode: 'disable'
   });
 
-  // Studio state
+  
   const [schemas, setSchemas] = useState<domain.DbSchema[]>([]);
   const [expandedSchema, setExpandedSchema] = useState<string | null>(null);
   const [tables, setTables] = useState<domain.DbTable[]>([]);
   const [activeTable, setActiveTable] = useState<string | null>(null);
   
-  // Query state
+  
   const [query, setQuery] = useState('SELECT * FROM information_schema.tables LIMIT 10;');
   const [queryResult, setQueryResult] = useState<domain.QueryResult | null>(null);
   const [executing, setExecuting] = useState(false);
@@ -89,7 +89,7 @@ export default function DbManagerPage() {
     checkStatus();
   };
 
-  // --- Studio Methods ---
+  
   const loadSchemas = async () => {
     try {
       const sc = await ListSchemas();
@@ -151,7 +151,7 @@ export default function DbManagerPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
-          {/* Left Panel: Schema Explorer */}
+          {}
           <div className="glass-card" style={{ width: '240px', display: 'flex', flexDirection: 'column', padding: '16px', overflowY: 'auto' }}>
             <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
               <Database size={15} /> Schemas
@@ -212,9 +212,9 @@ export default function DbManagerPage() {
             </div>
           </div>
 
-          {/* Right Panel: SQL Editor & Results */}
+          {}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-            {/* Editor */}
+            {}
             <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: '16px', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: '500', fontSize: '13px', color: 'var(--text-secondary)' }}>SQL Workspace</span>
@@ -242,7 +242,7 @@ export default function DbManagerPage() {
               )}
             </div>
 
-            {/* Results */}
+            {}
             <div className="glass-card" style={{ flex: 1, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: '600', fontSize: '13px' }}>Query Results</span>
@@ -295,7 +295,7 @@ export default function DbManagerPage() {
     );
   }
 
-  // Connection Manager Mode
+  
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>

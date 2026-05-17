@@ -5,7 +5,6 @@ import (
 	"dockit-desktop/bindings"
 )
 
-// App struct
 type App struct {
 	ctx              context.Context
 	dockerBinding    *bindings.DockerBinding
@@ -15,7 +14,6 @@ type App struct {
 	envBinding       *bindings.EnvBinding
 }
 
-// NewApp creates a new App application struct
 func NewApp(
 	docker *bindings.DockerBinding,
 	db *bindings.DatabaseBinding,
@@ -32,11 +30,9 @@ func NewApp(
 	}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	// Delegate context to all bindings
+
 	a.dockerBinding.Startup(ctx)
 	a.dbBinding.Startup(ctx)
 	a.apiBinding.Startup(ctx)

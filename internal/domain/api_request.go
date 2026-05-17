@@ -2,7 +2,6 @@ package domain
 
 import "time"
 
-// APIRequest represents an HTTP request log or configuration
 type APIRequest struct {
 	ID        int       `json:"id"`
 	URL       string    `json:"url"`

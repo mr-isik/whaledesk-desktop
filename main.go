@@ -16,11 +16,10 @@ import (
 	"dockit-desktop/internal/usecase"
 )
 
-//go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	// 1. Initialize Infrastructure (Ports)
+
 	dockerClient, err := docker.NewDockerClient()
 	if err != nil {
 		log.Fatalf("Failed to initialize Docker client: %v", err)
@@ -33,30 +32,25 @@ func main() {
 
 	httpClient := httpclient.NewHTTPClient()
 
-	// 2. Initialize Usecases
 	dockerUC := usecase.NewDockerUsecase(dockerClient)
 	dbUC := usecase.NewDatabaseUsecase(dbClient)
 	apiUC := usecase.NewAPIUsecase(httpClient, dbClient)
 	dbManagerUC := usecase.NewDbManagerUsecase()
 
-	// Ortam yönetimi için kripto servisi (keyring tabanlı AES-256-GCM)
 	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {
-		log.Fatalf("Kripto servisi başlatılamadı: %v", err)
+		log.Fatalf("Failed to initialize crypto service: %v", err)
 	}
 	envUC := usecase.NewEnvManagerUsecase(dbClient, cryptoService)
 
-	// 3. Initialize Bindings
 	dockerBinding := bindings.NewDockerBinding(dockerUC)
 	dbBinding := bindings.NewDatabaseBinding(dbUC)
 	apiBinding := bindings.NewAPIBinding(apiUC)
 	dbManagerBinding := bindings.NewDbManagerBinding(dbManagerUC)
 	envBinding := bindings.NewEnvBinding(envUC, apiUC)
 
-	// Create an instance of the app structure
 	app := NewApp(dockerBinding, dbBinding, apiBinding, dbManagerBinding, envBinding)
 
-	// Create application with options
 	err = wails.Run(&options.App{
 		Title:  "dockit-desktop",
 		Width:  1024,
