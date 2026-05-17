@@ -1,15 +1,16 @@
-import { Activity, Box, Database, Settings, Terminal, ServerCog } from "lucide-react";
+import { Activity, Box, Database, Settings, Terminal, ServerCog, Layers } from "lucide-react";
 import { useState } from "react";
 import ApiTesterPage from "../pages/ApiTesterPage";
 import ContainersPage from "../pages/ContainersPage";
 import DashboardPage from "../pages/DashboardPage";
 import DatabaseLogsPage from "../pages/DatabaseLogsPage";
 import DbManagerPage from "../pages/DbManagerPage";
+import EnvironmentsPage from "../pages/EnvironmentsPage";
 import "./MainLayout.css";
 
 // Importing pages (we'll create these next)
 
-type PageType = "dashboard" | "containers" | "api" | "logs" | "db";
+type PageType = "dashboard" | "containers" | "api" | "logs" | "db" | "envs";
 
 export default function MainLayout() {
   const [activePage, setActivePage] = useState<PageType>("dashboard");
@@ -26,6 +27,8 @@ export default function MainLayout() {
         return <DatabaseLogsPage />;
       case "db":
         return <DbManagerPage />;
+      case "envs":
+        return <EnvironmentsPage />;
       default:
         return <DashboardPage />;
     }
@@ -78,6 +81,14 @@ export default function MainLayout() {
           >
             <ServerCog size={20} />
             <span>DB Manager</span>
+          </div>
+
+          <div
+            className={`nav-item ${activePage === "envs" ? "active" : ""}`}
+            onClick={() => setActivePage("envs")}
+          >
+            <Layers size={20} />
+            <span>Environments</span>
           </div>
         </nav>
 
