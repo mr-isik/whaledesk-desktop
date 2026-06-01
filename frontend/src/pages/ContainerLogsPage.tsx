@@ -339,34 +339,36 @@ export default function ContainerLogsPage({ preselectedContainerId, onContainerS
                   className="log-row"
                   style={{
                     display: 'flex',
-                    padding: '2px 20px',
-                    gap: '12px',
+                    padding: '3px 18px',
+                    gap: '10px',
                     alignItems: 'flex-start',
-                    borderLeft: `2px solid ${isStderr ? 'var(--danger)' : 'transparent'}`,
-                    background: isStderr ? 'rgba(248, 113, 113, 0.03)' : 'transparent'
+                    borderLeft: `2px solid ${isStderr ? 'var(--danger)' : 'rgba(110, 86, 207, 0.2)'}`,
+                    background: isStderr ? 'rgba(255, 92, 114, 0.02)' : 'transparent',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.015)'
                   }}
                 >
                   {/* Timestamp */}
                   <span style={{
                     color: 'var(--text-muted)',
-                    fontSize: '10px',
+                    fontSize: '9.5px',
                     flexShrink: 0,
-                    minWidth: '90px',
+                    minWidth: '85px',
                     paddingTop: '2px',
-                    userSelect: 'none'
+                    userSelect: 'none',
+                    opacity: 0.8
                   }}>
                     {formatTimestamp(entry.timestamp)}
                   </span>
 
                   {/* Stream Badge */}
                   <span style={{
-                    fontSize: '8px',
+                    fontSize: '7.5px',
                     fontWeight: 700,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.08em',
                     color: isStderr ? 'var(--danger)' : 'var(--accent-primary)',
                     flexShrink: 0,
-                    minWidth: '38px',
+                    minWidth: '32px',
                     paddingTop: '3px',
                     userSelect: 'none'
                   }}>
@@ -375,10 +377,11 @@ export default function ContainerLogsPage({ preselectedContainerId, onContainerS
 
                   {/* Log Content */}
                   <span style={{
-                    color: isStderr ? '#fca5a5' : 'var(--text-primary)',
+                    color: isStderr ? '#fca5a5' : 'rgba(255, 255, 255, 0.9)',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-all',
-                    flex: 1
+                    flex: 1,
+                    letterSpacing: '-0.01em'
                   }}>
                     {entry.log}
                   </span>

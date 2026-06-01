@@ -168,25 +168,26 @@ export default function DbManagerPage() {
         {/* Studio Workspace Area */}
         <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
           
-          {/* Left panel: Schema & Table tree explorer (Supabase style) */}
+          {/* Left panel: Schema & Table tree explorer (IDE style) */}
           <div 
             className="glass-card" 
             style={{ 
-              width: '240px', 
+              width: '230px', 
               display: 'flex', 
               flexDirection: 'column', 
-              padding: '16px', 
+              padding: '14px', 
               overflowY: 'auto',
               flexShrink: 0,
-              background: 'var(--bg-secondary)'
+              background: 'var(--bg-secondary)',
+              boxShadow: "0 4px 16px rgba(0,0,0,0.15)"
             }}
           >
-            <div style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
-              <Layers size={13} color="var(--accent-primary)" />
+            <div style={{ fontWeight: '600', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+              <Layers size={12} color="var(--accent-primary)" style={{ opacity: 0.8 }} />
               Schema Explorer
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
               {schemas.length === 0 ? (
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '10px 0' }}>No database schemas found.</div>
               ) : (
@@ -195,43 +196,47 @@ export default function DbManagerPage() {
                     <div 
                       className={`nav-item ${expandedSchema === s.name ? 'active' : ''}`}
                       style={{ 
-                        padding: '6px 8px', 
+                        padding: '5px 8px', 
                         borderRadius: 'var(--radius-sm)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '12px',
-                        fontWeight: '600'
+                        gap: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: '500',
+                        background: expandedSchema === s.name ? 'linear-gradient(90deg, rgba(110, 86, 207, 0.08) 0%, rgba(110, 86, 207, 0.01) 100%)' : 'transparent',
+                        borderColor: expandedSchema === s.name ? 'rgba(110, 86, 207, 0.15)' : 'transparent'
                       }}
                       onClick={() => handleSchemaClick(s.name)}
                     >
-                      <Layout size={12} />
+                      <Layout size={11} color="var(--text-secondary)" />
                       <span>{s.name}</span>
                     </div>
                     
                     {expandedSchema === s.name && (
-                      <div style={{ paddingLeft: '16px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px', borderLeft: "1px dashed var(--border)", marginLeft: "14px" }}>
+                      <div style={{ paddingLeft: '14px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: "1px solid var(--border)", marginLeft: "13px" }}>
                         {tables.length === 0 ? (
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '6px 8px' }}>No tables in schema</div>
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', padding: '5px 8px' }}>No tables in schema</div>
                         ) : (
                           tables.map(t => (
                             <div 
                               key={t.name}
                               style={{
-                                padding: '5px 8px',
-                                fontSize: '12px',
+                                padding: '4px 8px',
+                                fontSize: '11.5px',
                                 cursor: 'pointer',
                                 borderRadius: 'var(--radius-sm)',
-                                background: activeTable === t.name ? 'var(--bg-tertiary)' : 'transparent',
+                                background: activeTable === t.name ? 'linear-gradient(90deg, rgba(110, 86, 207, 0.06) 0%, rgba(0,0,0,0) 100%)' : 'transparent',
                                 color: activeTable === t.name ? 'var(--text-primary)' : 'var(--text-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px',
-                                fontWeight: activeTable === t.name ? '600' : 'normal'
+                                gap: '5px',
+                                fontWeight: activeTable === t.name ? '600' : 'normal',
+                                border: activeTable === t.name ? '1px solid rgba(110, 86, 207, 0.1)' : '1px solid transparent',
+                                transition: 'all var(--transition-fast)'
                               }}
                               onClick={() => handleTableClick(t.name)}
                             >
-                              <TableIcon size={11} color={activeTable === t.name ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                              <TableIcon size={10.5} color={activeTable === t.name ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                             </div>
                           ))

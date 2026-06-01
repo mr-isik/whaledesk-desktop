@@ -1,4 +1,4 @@
-import { Activity, Box, Settings, Terminal, ServerCog, Layers, ScrollText } from "lucide-react";
+import { Activity, Box, Settings, Terminal, ServerCog, Layers, ScrollText, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import ApiTesterPage from "../pages/ApiTesterPage";
 import ContainerLogsPage from "../pages/ContainerLogsPage";
@@ -23,6 +23,77 @@ export default function MainLayout() {
     checkInfraStatus();
     const interval = setInterval(checkInfraStatus, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Global Keyboard Shortcuts for High-Productivity UX
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Check if user is actively editing text in form controls
+      const active = document.activeElement;
+      const isInput = active && (
+        active.tagName === "INPUT" || 
+        active.tagName === "TEXTAREA" || 
+        active.tagName === "SELECT" ||
+        active.getAttribute("contenteditable") === "true"
+      );
+
+      // Escape key unfocuses active search/input fields
+      if (e.key === "Escape" && isInput) {
+        (active as HTMLElement).blur();
+        return;
+      }
+
+      // Ignore navigation numbers if user is typing
+      if (isInput) return;
+
+      // 2. Navigation switching: 1-6 keys
+      if (e.key === "1") {
+        setActivePage("dashboard");
+      } else if (e.key === "2") {
+        setActivePage("containers");
+      } else if (e.key === "3") {
+        setActivePage("container-logs");
+      } else if (e.key === "4") {
+        setActivePage("api");
+      } else if (e.key === "5") {
+        setActivePage("db");
+      } else if (e.key === "6") {
+        setActivePage("envs");
+      }
+      
+      // 3. Focus Search/Filter controls: '/' or 's'
+      else if (e.key === "/" || e.key === "s") {
+        e.preventDefault();
+        const searchInput = document.querySelector(
+          'input[placeholder*="Search"], input[placeholder*="Filter"], input[placeholder*="search"], input[placeholder*="filter"]'
+        ) as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+
+      // 4. Refresh/Sync active panels: 'r' / 'R'
+      else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        const refreshBtn = document.querySelector(
+          'button[title*="Refresh"], button[title*="Sync"], button:has(svg.animate-spin)'
+        ) as HTMLButtonElement;
+
+        const allButtons = Array.from(document.querySelectorAll("button"));
+        const targetBtn = refreshBtn || allButtons.find(btn => 
+          btn.innerText.toLowerCase().includes("sync") || 
+          btn.innerText.toLowerCase().includes("refresh")
+        );
+
+        if (targetBtn && !targetBtn.disabled) {
+          targetBtn.click();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const checkInfraStatus = async () => {
@@ -70,8 +141,11 @@ export default function MainLayout() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <Box className="logo-icon" size={22} strokeWidth={2.5} />
-          <span>Dockit Console</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+            <Box className="logo-icon" size={16} strokeWidth={2.5} />
+            <span style={{ fontSize: "12.5px", fontWeight: 700 }}>Dockit Console</span>
+          </div>
+          <ChevronDown size={12} color="var(--text-muted)" style={{ opacity: 0.6 }} />
         </div>
 
         <nav className="nav-links">
@@ -79,49 +153,66 @@ export default function MainLayout() {
             className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
             onClick={() => setActivePage("dashboard")}
           >
-            <Activity size={18} />
-            <span>Dashboard</span>
+            <div className="nav-item-inner">
+              <Activity size={15} />
+              <span>Dashboard</span>
+            </div>
+            <span className="shortcut-tag">1</span>
           </div>
 
           <div
             className={`nav-item ${activePage === "containers" ? "active" : ""}`}
             onClick={() => setActivePage("containers")}
           >
-            <Box size={18} />
-            <span>Containers</span>
+            <div className="nav-item-inner">
+              <Box size={15} />
+              <span>Containers</span>
+            </div>
+            <span className="shortcut-tag">2</span>
           </div>
 
           <div
             className={`nav-item ${activePage === "container-logs" ? "active" : ""}`}
             onClick={() => setActivePage("container-logs")}
           >
-            <ScrollText size={18} />
-            <span>Container Logs</span>
+            <div className="nav-item-inner">
+              <ScrollText size={15} />
+              <span>Logs Console</span>
+            </div>
+            <span className="shortcut-tag">3</span>
           </div>
 
           <div
             className={`nav-item ${activePage === "api" ? "active" : ""}`}
             onClick={() => setActivePage("api")}
           >
-            <Terminal size={18} />
-            <span>API Tester</span>
+            <div className="nav-item-inner">
+              <Terminal size={15} />
+              <span>API Tester</span>
+            </div>
+            <span className="shortcut-tag">4</span>
           </div>
-
 
           <div
             className={`nav-item ${activePage === "db" ? "active" : ""}`}
             onClick={() => setActivePage("db")}
           >
-            <ServerCog size={18} />
-            <span>DB Manager</span>
+            <div className="nav-item-inner">
+              <ServerCog size={15} />
+              <span>DB Studio</span>
+            </div>
+            <span className="shortcut-tag">5</span>
           </div>
 
           <div
             className={`nav-item ${activePage === "envs" ? "active" : ""}`}
             onClick={() => setActivePage("envs")}
           >
-            <Layers size={18} />
-            <span>Environments</span>
+            <div className="nav-item-inner">
+              <Layers size={15} />
+              <span>Environments</span>
+            </div>
+            <span className="shortcut-tag">6</span>
           </div>
         </nav>
 
@@ -143,8 +234,11 @@ export default function MainLayout() {
         <div style={{ flex: 1 }}></div>
 
         <div className="nav-item" style={{ marginTop: "auto" }}>
-          <Settings size={18} />
-          <span>Settings</span>
+          <div className="nav-item-inner">
+            <Settings size={15} />
+            <span>Settings</span>
+          </div>
+          <span className="shortcut-tag">⌘,</span>
         </div>
       </aside>
 
