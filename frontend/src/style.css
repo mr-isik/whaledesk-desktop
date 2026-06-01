@@ -1,32 +1,42 @@
 :root {
-  /* Premium Monochrome / Zinc Color Palette (Vercel & Supabase Style) */
-  --bg-primary: #09090b;       /* Zinc 950 - Deep Matte Dark */
-  --bg-secondary: #18181b;     /* Zinc 900 - Card/Sidebar Surface */
-  --bg-tertiary: #27272a;      /* Zinc 800 - Component/Active Highlight */
+  /* Supabase & Vercel Inspired Billion-Dollar Developer Platform Theme */
+  --bg-primary: #09090b;         /* Obsidian Base (Pitch Dark) */
+  --bg-secondary: #121215;       /* Elevated Surface (Sidebar & Cards) */
+  --bg-tertiary: #18181c;        /* Secondary Elevated (Inputs, Active items) */
+  --bg-hover: rgba(255, 255, 255, 0.035);
   
-  --accent-primary: #2563eb;   /* Cobalt Action Blue */
-  --accent-foreground: #ffffff;
+  --accent-primary: #3ecf8e;     /* Supabase Brand Emerald Green */
+  --accent-hover: #30b57a;       /* Slightly deeper emerald for hovers */
+  --accent-foreground: #09090b;  /* Obsidian contrast for button labels */
+  --accent-glow: rgba(62, 207, 142, 0.15);
   
-  --border: #27272a;           /* Thin Precise Border - Zinc 800 */
-  --border-hover: #3f3f46;     /* Zinc 700 */
+  --border: rgba(255, 255, 255, 0.055);       /* Ultra-thin pixel perfect borders */
+  --border-hover: rgba(255, 255, 255, 0.12);   /* Soft hover reveal */
+  --border-active: rgba(62, 207, 142, 0.3);   /* Supabase Green focus border */
   
-  --text-primary: #fafafa;     /* Clean Off-white */
-  --text-secondary: #a1a1aa;   /* Soft Muted Gray */
-  --text-muted: #52525b;       /* Dark Muted Gray */
-
-  --success: #10b981;          /* Emerald Green */
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --danger: #ef4444;           /* Coral Red */
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --warning: #f59e0b;          /* Amber Gold */
-  --warning-bg: rgba(245, 158, 11, 0.1);
+  --text-primary: #f4f4f5;       /* Off-white, soft high-contrast reading */
+  --text-secondary: #a1a1aa;     /* Muted grey for subheaders */
+  --text-muted: #52525b;         /* Deep grey for placeholders and secrets */
+  
+  --success: #3ecf8e;            /* Emerald success */
+  --success-bg: rgba(62, 207, 142, 0.06);
+  --success-border: rgba(62, 207, 142, 0.15);
+  
+  --danger: #f87171;             /* Modern Coral Red */
+  --danger-bg: rgba(248, 113, 113, 0.06);
+  --danger-border: rgba(248, 113, 113, 0.15);
+  
+  --warning: #fbbf24;            /* Soft Amber Gold */
+  --warning-bg: rgba(251, 191, 36, 0.06);
+  --warning-border: rgba(251, 191, 36, 0.15);
   
   /* Layout Metrics & Radii */
-  --radius-sm: 6px;            /* Precise Sharp Corners (Vercel Style) */
-  --radius-md: 8px;            /* Standard Card Radius */
+  --radius-sm: 6px;              /* Standard button & badge corners */
+  --radius-md: 8px;              /* Card & main component container corners */
+  --radius-lg: 12px;
   
-  --transition-fast: 0.1s ease;
-  --transition-normal: 0.2s ease;
+  --transition-fast: 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -39,13 +49,14 @@ html, body, #root {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  background-color: var(--bg-primary);
 }
 
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  letter-spacing: -0.01em;
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.015em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -60,7 +71,7 @@ a:hover {
   color: var(--accent-primary);
 }
 
-/* Custom Scrollbar - Professional & Minimal */
+/* Custom Scrollbar - Professional & Minimal Vercel Style */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -74,4 +85,10 @@ a:hover {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Base input & textarea override for supreme professional focus states */
+input, select, textarea {
+  font-family: inherit;
+  letter-spacing: inherit;
 }

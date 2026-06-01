@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Server, Database, Table as TableIcon, Play, AlertCircle, Plus, Trash2, Layout } from 'lucide-react';
+import { Server, Database, Table as TableIcon, Play, AlertCircle, Plus, Trash2, Layout, Layers, Terminal, ServerCrash, Check } from 'lucide-react';
 import { 
   AddConnection, ListConnections, RemoveConnection, Connect, Disconnect, 
   IsConnected, ListSchemas, ListTables, ExecuteQuery, GetActiveConnection 
@@ -13,20 +13,20 @@ export default function DbManagerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  
+  // Connection Wizard Form
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: 'Local Postgres', type: 'postgres', host: 'localhost', port: 5432, 
     user: 'postgres', password: '', database: 'postgres', ssl_mode: 'disable'
   });
 
-  
+  // DB Schema & Table trees
   const [schemas, setSchemas] = useState<domain.DbSchema[]>([]);
   const [expandedSchema, setExpandedSchema] = useState<string | null>(null);
   const [tables, setTables] = useState<domain.DbTable[]>([]);
   const [activeTable, setActiveTable] = useState<string | null>(null);
   
-  
+  // SQL Workspace
   const [query, setQuery] = useState('SELECT * FROM information_schema.tables LIMIT 10;');
   const [queryResult, setQueryResult] = useState<domain.QueryResult | null>(null);
   const [executing, setExecuting] = useState(false);
@@ -85,22 +85,29 @@ export default function DbManagerPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await RemoveConnection(id);
-    checkStatus();
+    if (confirm("Are you sure you want to delete this database connection?")) {
+      await RemoveConnection(id);
+      checkStatus();
+    }
   };
 
-  
   const loadSchemas = async () => {
     try {
       const sc = await ListSchemas();
       setSchemas(sc || []);
+      
+      // Auto expand public schema if present
+      const publicSchema = sc?.find(s => s.name === 'public');
+      if (publicSchema) {
+        handleSchemaClick('public');
+      }
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleSchemaClick = async (schema: string) => {
-    if (expandedSchema === schema) {
+    if (expandedSchema === schema && schema !== 'public') {
       setExpandedSchema(null);
       setTables([]);
       return;
@@ -137,125 +144,170 @@ export default function DbManagerPage() {
     }
   };
 
+  // Connected state: Render SQL Database Studio
   if (isConnected && activeConn) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', gap: '16px', minHeight: 0 }}>
+        
+        {/* Connection Header Panel */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 className="page-title" style={{ fontSize: '20px', marginBottom: '4px' }}>Database Studio</h1>
-            <p className="page-subtitle" style={{ marginBottom: 0 }}>Connected to {activeConn.name} ({activeConn.database})</p>
+            <h1 className="page-title" style={{ fontSize: '20px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Database size={20} color="var(--accent-primary)" />
+              Database Studio
+            </h1>
+            <p className="page-subtitle" style={{ marginBottom: 0 }}>
+              Connected to <strong style={{ color: 'var(--text-primary)' }}>{activeConn.name}</strong> • <code>{activeConn.user}@{activeConn.host}:{activeConn.port}/{activeConn.database}</code>
+            </p>
           </div>
           <button className="btn-danger" onClick={handleDisconnect} style={{ padding: '6px 12px', fontSize: '12px' }}>
-            Disconnect
+            Disconnect Studio
           </button>
         </div>
 
+        {/* Studio Workspace Area */}
         <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
-          {}
-          <div className="glass-card" style={{ width: '240px', display: 'flex', flexDirection: 'column', padding: '16px', overflowY: 'auto' }}>
-            <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-              <Database size={15} /> Schemas
+          
+          {/* Left panel: Schema & Table tree explorer (Supabase style) */}
+          <div 
+            className="glass-card" 
+            style={{ 
+              width: '240px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              padding: '16px', 
+              overflowY: 'auto',
+              flexShrink: 0,
+              background: 'var(--bg-secondary)'
+            }}
+          >
+            <div style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+              <Layers size={13} color="var(--accent-primary)" />
+              Schema Explorer
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {schemas.map(s => (
-                <div key={s.name}>
-                  <div 
-                    style={{ 
-                      padding: '6px 8px', 
-                      background: expandedSchema === s.name ? 'rgba(255,255,255,0.04)' : 'transparent', 
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '13px',
-                      fontWeight: expandedSchema === s.name ? '500' : 'normal',
-                      color: 'var(--text-primary)'
-                    }}
-                    onClick={() => handleSchemaClick(s.name)}
-                  >
-                    <Layout size={13} color="var(--text-secondary)" />
-                    {s.name}
-                  </div>
-                  
-                  {expandedSchema === s.name && (
-                    <div style={{ paddingLeft: '18px', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      {tables.length === 0 ? (
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 8px' }}>No tables found.</div>
-                      ) : (
-                        tables.map(t => (
-                          <div 
-                            key={t.name}
-                            style={{
-                              padding: '5px 8px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              borderRadius: 'var(--radius-sm)',
-                              background: activeTable === t.name ? 'var(--bg-tertiary)' : 'transparent',
-                              color: activeTable === t.name ? 'var(--text-primary)' : 'var(--text-secondary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                            onClick={() => handleTableClick(t.name)}
-                          >
-                            <TableIcon size={12} />
-                            {t.name}
-                          </div>
-                        ))
-                      )}
+              {schemas.length === 0 ? (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '10px 0' }}>No database schemas found.</div>
+              ) : (
+                schemas.map(s => (
+                  <div key={s.name}>
+                    <div 
+                      className={`nav-item ${expandedSchema === s.name ? 'active' : ''}`}
+                      style={{ 
+                        padding: '6px 8px', 
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}
+                      onClick={() => handleSchemaClick(s.name)}
+                    >
+                      <Layout size={12} />
+                      <span>{s.name}</span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    
+                    {expandedSchema === s.name && (
+                      <div style={{ paddingLeft: '16px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px', borderLeft: "1px dashed var(--border)", marginLeft: "14px" }}>
+                        {tables.length === 0 ? (
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '6px 8px' }}>No tables in schema</div>
+                        ) : (
+                          tables.map(t => (
+                            <div 
+                              key={t.name}
+                              style={{
+                                padding: '5px 8px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                borderRadius: 'var(--radius-sm)',
+                                background: activeTable === t.name ? 'var(--bg-tertiary)' : 'transparent',
+                                color: activeTable === t.name ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontWeight: activeTable === t.name ? '600' : 'normal'
+                              }}
+                              onClick={() => handleTableClick(t.name)}
+                            >
+                              <TableIcon size={11} color={activeTable === t.name ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          {}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-            {}
+          {/* Right panel: Editor Workspace (top) & Query results (bottom) */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0, height: '100%' }}>
+            
+            {/* SQL Input Area */}
             <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: '16px', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '500', fontSize: '13px', color: 'var(--text-secondary)' }}>SQL Workspace</span>
-                <button className="btn-primary" onClick={handleExecute} disabled={executing} style={{ padding: '6px 12px', fontSize: '12px' }}>
-                  <Play size={12} fill="currentColor" />
-                  Run
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Terminal size={12} color="var(--accent-primary)" />
+                  SQL Editor
+                </span>
+                <button className="btn-primary" onClick={handleExecute} disabled={executing} style={{ padding: '4px 12px', fontSize: '12px', height: '28px' }}>
+                  <Play size={10} fill="currentColor" />
+                  Run Query
                 </button>
               </div>
+              
               <textarea 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="input-field"
                 style={{
-                  height: '110px',
-                  fontFamily: 'monospace',
-                  fontSize: '13px',
+                  height: '100px',
+                  fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+                  fontSize: '12px',
+                  lineHeight: '1.5',
                   resize: 'vertical',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  background: 'var(--bg-primary)'
                 }}
               />
+              
               {error && (
-                <div style={{ padding: '8px 12px', background: 'var(--danger-bg)', border: '1px solid rgba(239, 68, 68, 0.15)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlertCircle size={14} /> {error}
+                <div style={{ padding: '8px 12px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' }}>
+                  <AlertCircle size={14} />
+                  <span>{error}</span>
                 </div>
               )}
             </div>
 
-            {}
-            <div className="glass-card" style={{ flex: 1, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', fontSize: '13px' }}>Query Results</span>
-                {queryResult && <span className="badge neutral" style={{ fontSize: '10px' }}>Rows: {queryResult.rows_affected}</span>}
+            {/* SQL Query Results Table Panel */}
+            <div className="glass-card" style={{ flex: 1, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ 
+                padding: '12px 18px', 
+                borderBottom: '1px solid var(--border)', 
+                background: 'rgba(255, 255, 255, 0.015)', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center' 
+              }}>
+                <span style={{ fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>Query Console Results</span>
+                {queryResult && <span className="badge neutral" style={{ fontSize: '9px' }}>Rows Affected: {queryResult.rows_affected}</span>}
               </div>
               
-              <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
+              <div style={{ flex: 1, overflow: 'auto', padding: '12px', background: 'var(--bg-primary)' }}>
                 {!queryResult ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', marginTop: '40px' }}>Run a query to see results</div>
+                  <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    Execute an SQL command to display query rows here.
+                  </div>
                 ) : queryResult.columns.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--success)', fontSize: '13px', marginTop: '40px' }}>Query executed successfully.</div>
+                  <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)', fontSize: '12px', gap: '6px', fontWeight: '600' }}>
+                    <Check size={16} /> Query executed successfully. No dataset rows returned.
+                  </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                     <thead>
                       <tr>
                         {queryResult.columns.map((c, i) => (
@@ -263,11 +315,12 @@ export default function DbManagerPage() {
                             textAlign: 'left', 
                             padding: '8px 12px', 
                             borderBottom: '1px solid var(--border)', 
-                            color: 'var(--text-secondary)', 
-                            fontWeight: '600',
+                            color: 'var(--text-primary)', 
+                            fontWeight: '700',
                             position: 'sticky', 
                             top: 0, 
-                            background: 'var(--bg-secondary)' 
+                            background: 'var(--bg-secondary)',
+                            fontFamily: "var(--font-mono, 'Geist Mono', monospace)"
                           }}>
                             {c}
                           </th>
@@ -278,8 +331,16 @@ export default function DbManagerPage() {
                       {queryResult.rows.map((row, rIdx) => (
                         <tr key={rIdx} style={{ borderBottom: '1px solid var(--border)' }} className="log-row">
                           {row.map((val, cIdx) => (
-                            <td key={cIdx} style={{ padding: '8px 12px', whiteSpace: 'nowrap', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-secondary)' }}>
-                              {val === null ? <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>null</span> : String(val)}
+                            <td key={cIdx} style={{ 
+                              padding: '8px 12px', 
+                              whiteSpace: 'nowrap', 
+                              maxWidth: '240px', 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis', 
+                              color: 'var(--text-secondary)',
+                              fontFamily: "var(--font-mono, 'Geist Mono', monospace)"
+                            }}>
+                              {val === null ? <span style={{ color: 'var(--text-muted)', fontSize: '10px', fontStyle: 'italic' }}>NULL</span> : String(val)}
                             </td>
                           ))}
                         </tr>
@@ -289,112 +350,142 @@ export default function DbManagerPage() {
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </div>
     );
   }
 
-  
+  // Disconnected state: Saved connections & Wizard onboarding
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', display: "flex", flexDirection: "column", gap: "24px" }}>
+      
+      {/* Title */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">DB Manager</h1>
-          <p className="page-subtitle">Manage your database connections</p>
+          <p className="page-subtitle" style={{ marginBottom: 0 }}>Create database tunnels and configure connections</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)} style={{ padding: '6px 12px', fontSize: '12px' }}>
-          <Plus size={14} /> New Connection
+        <button 
+          className="btn-primary" 
+          onClick={() => setShowForm(!showForm)} 
+          style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }}
+        >
+          <Plus size={14} /> 
+          New Connection
         </button>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', background: 'var(--danger-bg)', border: '1px solid rgba(239, 68, 68, 0.15)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-          <AlertCircle size={16} /> {error}
+        <div style={{ padding: '10px 14px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '500' }}>
+          <AlertCircle size={15} /> 
+          <span>Connection Error: {error}</span>
         </div>
       )}
 
+      {/* Connection Creation Wizard Panel */}
       {showForm && (
-        <div className="glass-card" style={{ marginBottom: '24px' }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>Add PostgreSQL Connection</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div className="glass-card" style={{ animation: "fadeIn 0.2s ease" }}>
+          <h3 style={{ marginBottom: '16px', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Create PostgreSQL Connection</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Name</label>
-              <input type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Alias Name</label>
+              <input type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Production DB" />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Database</label>
+              <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Database Name</label>
               <input type="text" className="input-field" value={formData.database} onChange={e => setFormData({...formData, database: e.target.value})} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Host</label>
+              <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Host Address</label>
               <input type="text" className="input-field" value={formData.host} onChange={e => setFormData({...formData, host: e.target.value})} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Port</label>
+              <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Port Number</label>
               <input type="number" className="input-field" value={formData.port} onChange={e => setFormData({...formData, port: parseInt(e.target.value)})} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>User</label>
+              <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>User Credentials</label>
               <input type="text" className="input-field" value={formData.user} onChange={e => setFormData({...formData, user: e.target.value})} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Password</label>
-              <input type="password" className="input-field" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+              <label style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '600', textTransform: 'uppercase' }}>Password</label>
+              <input type="password" className="input-field" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '20px', justifyContent: 'flex-end' }}>
-            <button className="btn-outline" onClick={() => setShowForm(false)} style={{ padding: '6px 12px', fontSize: '12px' }}>Cancel</button>
-            <button className="btn-primary" onClick={handleSaveConnection} style={{ padding: '6px 12px', fontSize: '12px' }}>Save</button>
+          
+          <div style={{ display: 'flex', gap: '8px', marginTop: '24px', justifyContent: 'flex-end' }}>
+            <button className="btn-outline" onClick={() => setShowForm(false)} style={{ padding: '6px 14px', fontSize: '12px' }}>Cancel</button>
+            <button className="btn-primary" onClick={handleSaveConnection} style={{ padding: '6px 14px', fontSize: '12px' }}>Save Endpoint</button>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
+      {/* Grid of Saved Connections */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
         {connections.length === 0 && !showForm && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '13px' }}>
-            No connections found. Add one to get started.
+          <div className="glass-card" style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 40px', gap: '12px', border: "1px dashed var(--border)" }}>
+            <ServerCrash size={32} style={{ color: 'var(--text-muted)' }} />
+            <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>No Database Endpoints Saved</div>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', maxWidth: "340px", lineHeight: 1.5 }}>
+              Add a PostgreSQL endpoint connection config to launch active database studio query dashboards.
+            </p>
           </div>
         )}
         
         {connections.map(conn => (
-          <div key={conn.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <div key={conn.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: '16px', minHeight: "150px" }}>
+            
+            {/* Card Header info */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
               <div style={{ 
                 padding: '8px', 
                 background: 'var(--bg-primary)', 
                 border: '1px solid var(--border)', 
                 borderRadius: 'var(--radius-sm)', 
-                color: 'var(--text-primary)',
+                color: 'var(--accent-primary)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                marginTop: "2px"
               }}>
-                <Server size={16} />
+                <Server size={14} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: '600', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conn.name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conn.user}@{conn.host}:{conn.port}</div>
+                <div style={{ fontWeight: '700', fontSize: '13px', color: "var(--text-primary)", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conn.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: "2px" }}>
+                  {conn.database}
+                </div>
               </div>
             </div>
             
+            {/* Credentials subtitle details */}
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", marginBottom: '18px', borderTop: "1px solid var(--border)", paddingTop: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {conn.user}@{conn.host}:{conn.port}
+            </div>
+            
+            {/* Actions panel */}
             <div style={{ display: 'flex', gap: '6px', marginTop: 'auto' }}>
               <button 
                 className="btn-primary" 
-                style={{ flex: 1, justifyContent: 'center', padding: '6px 12px', fontSize: '12px' }}
+                style={{ flex: 1, justifyContent: 'center', padding: '5px 12px', fontSize: '12px', height: '30px' }}
                 onClick={() => handleConnect(conn.id)}
                 disabled={loading}
               >
-                Connect
+                Connect Studio
               </button>
+              
               <button 
                 className="btn-outline" 
-                style={{ color: 'var(--danger)', padding: '6px' }}
+                style={{ color: 'var(--danger)', borderColor: "var(--danger-border)", padding: '6px', height: '30px', width: '30px' }}
                 onClick={() => handleDelete(conn.id)}
+                title="Remove Endpoint"
               >
-                <Trash2 size={14} />
+                <Trash2 size={13} />
               </button>
             </div>
+
           </div>
         ))}
       </div>
