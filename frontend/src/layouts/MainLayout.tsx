@@ -1,21 +1,23 @@
-import { Activity, Box, Database, Settings, Terminal, ServerCog, Layers } from "lucide-react";
+import { Activity, Box, Settings, Terminal, ServerCog, Layers, ScrollText } from "lucide-react";
 import { useState, useEffect } from "react";
 import ApiTesterPage from "../pages/ApiTesterPage";
+import ContainerLogsPage from "../pages/ContainerLogsPage";
 import ContainersPage from "../pages/ContainersPage";
 import DashboardPage from "../pages/DashboardPage";
-import DatabaseLogsPage from "../pages/DatabaseLogsPage";
+
 import DbManagerPage from "../pages/DbManagerPage";
 import EnvironmentsPage from "../pages/EnvironmentsPage";
 import { IsDaemonRunning } from "../../wailsjs/go/bindings/DockerBinding";
 import { IsConnected } from "../../wailsjs/go/bindings/DbManagerBinding";
 import "./MainLayout.css";
 
-type PageType = "dashboard" | "containers" | "api" | "logs" | "db" | "envs";
+type PageType = "dashboard" | "containers" | "container-logs" | "api" | "db" | "envs";
 
 export default function MainLayout() {
   const [activePage, setActivePage] = useState<PageType>("dashboard");
   const [dockerOnline, setDockerOnline] = useState<boolean>(false);
   const [dbOnline, setDbOnline] = useState<boolean>(false);
+  const [selectedLogContainerId, setSelectedLogContainerId] = useState<string>("");
 
   useEffect(() => {
     checkInfraStatus();
@@ -44,11 +46,17 @@ export default function MainLayout() {
       case "dashboard":
         return <DashboardPage />;
       case "containers":
-        return <ContainersPage />;
+        return <ContainersPage onNavigateToLogs={(id) => {
+          setSelectedLogContainerId(id);
+          setActivePage("container-logs");
+        }} />;
+      case "container-logs":
+        return <ContainerLogsPage 
+          preselectedContainerId={selectedLogContainerId} 
+          onContainerSelect={(id) => setSelectedLogContainerId(id)} 
+        />;
       case "api":
         return <ApiTesterPage />;
-      case "logs":
-        return <DatabaseLogsPage />;
       case "db":
         return <DbManagerPage />;
       case "envs":
@@ -84,6 +92,14 @@ export default function MainLayout() {
           </div>
 
           <div
+            className={`nav-item ${activePage === "container-logs" ? "active" : ""}`}
+            onClick={() => setActivePage("container-logs")}
+          >
+            <ScrollText size={18} />
+            <span>Container Logs</span>
+          </div>
+
+          <div
             className={`nav-item ${activePage === "api" ? "active" : ""}`}
             onClick={() => setActivePage("api")}
           >
@@ -91,13 +107,6 @@ export default function MainLayout() {
             <span>API Tester</span>
           </div>
 
-          <div
-            className={`nav-item ${activePage === "logs" ? "active" : ""}`}
-            onClick={() => setActivePage("logs")}
-          >
-            <Database size={18} />
-            <span>Database Logs</span>
-          </div>
 
           <div
             className={`nav-item ${activePage === "db" ? "active" : ""}`}

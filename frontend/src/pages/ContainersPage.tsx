@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Play, Square, RotateCw, Trash2, Box, Search, ExternalLink } from 'lucide-react';
+import { Play, Square, RotateCw, Trash2, Box, Search, ExternalLink, ScrollText } from 'lucide-react';
 import { GetContainers, StartContainer, StopContainer, RestartContainer, RemoveContainer } from '../../wailsjs/go/bindings/DockerBinding';
 import { domain } from '../../wailsjs/go/models';
 
 type FilterType = "all" | "running" | "stopped";
 
-export default function ContainersPage() {
+interface ContainersPageProps {
+  onNavigateToLogs?: (id: string) => void;
+}
+
+export default function ContainersPage({ onNavigateToLogs }: ContainersPageProps) {
   const [containers, setContainers] = useState<domain.Container[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -221,6 +225,17 @@ export default function ContainersPage() {
                   >
                     <RotateCw size={12} />
                   </button>
+
+                  {onNavigateToLogs && (
+                    <button 
+                      className="btn-outline" 
+                      style={{ padding: '6px 10px', height: "32px" }} 
+                      onClick={() => onNavigateToLogs(c.id)} 
+                      title="View Logs"
+                    >
+                      <ScrollText size={12} />
+                    </button>
+                  )}
                   
                   <button 
                     className="btn-outline" 
