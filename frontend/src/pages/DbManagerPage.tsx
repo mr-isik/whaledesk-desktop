@@ -15,8 +15,12 @@ import {
   Terminal,
   Trash2,
   X,
+  Key,
+  Keyboard,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import CustomCheckbox from "../components/CustomCheckbox";
+import CustomSelect from "../components/CustomSelect";
 import {
   AddConnection,
   Connect,
@@ -103,9 +107,111 @@ export default function DbManagerPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addFormData, setAddFormData] = useState<Record<string, any>>({});
 
+  // Keyboard Shortcuts Guide Panel
+  const [showShortcutsGuide, setShowShortcutsGuide] = useState(false);
+
   useEffect(() => {
     checkStatus();
   }, []);
+
+  // Global Keyboard Shortcuts Hook
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const isInput =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable;
+
+      // 1. Esc Key: Close active cell edit or active modals
+      if (e.key === "Escape") {
+        if (editingCell) {
+          e.preventDefault();
+          setEditingCell(null);
+        } else if (showAddModal) {
+          e.preventDefault();
+          setShowAddModal(false);
+        } else if (showShortcutsGuide) {
+          e.preventDefault();
+          setShowShortcutsGuide(false);
+        }
+        return;
+      }
+
+      // 2. Ctrl/Cmd + Enter -> Execute SQL Query (can be pressed globally or in textareas)
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        if (activeTab === "sql") {
+          e.preventDefault();
+          handleExecute();
+        }
+        return;
+      }
+
+      // 3. Ctrl/Cmd + R -> Refresh table data
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") {
+        if (activeTab === "data" && activeTable) {
+          e.preventDefault();
+          loadTableData(tableReq);
+        }
+        return;
+      }
+
+      // Block structural hotkeys if writing in fields (so users can type numbers / N letters without triggering action)
+      if (isInput && !(e.target instanceof HTMLTextAreaElement && (e.ctrlKey || e.metaKey))) {
+        if (e.key === "Delete" || e.key === "Backspace") {
+          return;
+        }
+      }
+
+      // 4. Alt + 1 -> Switch to Data Browser tab
+      if (e.altKey && e.key === "1") {
+        e.preventDefault();
+        setActiveTab("data");
+        return;
+      }
+
+      // 5. Alt + 2 -> Switch to SQL Editor tab
+      if (e.altKey && e.key === "2") {
+        e.preventDefault();
+        setActiveTab("sql");
+        return;
+      }
+
+      // 6. Ctrl + Alt + N or Alt + N -> Open Add Row modal
+      if (
+        (e.ctrlKey && e.altKey && e.key.toLowerCase() === "n") ||
+        (e.altKey && e.key.toLowerCase() === "n")
+      ) {
+        if (activeTab === "data" && activeTable) {
+          e.preventDefault();
+          openAddModal();
+        }
+        return;
+      }
+
+      // 7. Delete key -> Bulk delete selected rows (only when not typing in fields)
+      if (e.key === "Delete" && !isInput) {
+        if (activeTab === "data" && selectedRowIndices.length > 0) {
+          e.preventDefault();
+          handleBulkDelete();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [
+    activeTab,
+    activeTable,
+    tableReq,
+    selectedRowIndices,
+    showAddModal,
+    editingCell,
+    query,
+    showShortcutsGuide,
+  ]);
 
   const checkStatus = async () => {
     const connected = await IsConnected();
@@ -414,42 +520,56 @@ export default function DbManagerPage() {
       >
         {/* Connection Header Panel */}
         <div
+          className="glass-card"
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            padding: "12px 20px",
+            background: "linear-gradient(90deg, var(--bg-secondary) 0%, rgba(11, 10, 15, 0.4) 100%)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
           }}
         >
           <div>
             <h1
-              className="page-title"
               style={{
-                fontSize: "20px",
-                marginBottom: "2px",
+                fontSize: "18px",
+                fontWeight: "800",
+                marginBottom: "4px",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
+                color: "var(--text-primary)",
+                letterSpacing: "-0.02em",
               }}
             >
-              <Database size={20} color="var(--accent-primary)" />
+              <Database size={18} color="var(--accent-primary)" style={{ filter: "drop-shadow(0 0 4px var(--accent-glow))" }} />
               Database Studio
             </h1>
-            <p className="page-subtitle" style={{ marginBottom: 0 }}>
-              Connected to{" "}
-              <strong style={{ color: "var(--text-primary)" }}>
+            <p style={{ margin: 0, fontSize: "11.5px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+              <span>Connected to</span>
+              <strong style={{ color: "var(--accent-hover)", fontWeight: "600" }}>
                 {activeConn.name}
-              </strong>{" "}
-              •{" "}
-              <code>
-                {activeConn.user}@{activeConn.host}:{activeConn.port}/
-                {activeConn.database}
+              </strong>
+              <span style={{ color: "var(--border-hover)" }}>|</span>
+              <code style={{ background: "rgba(255,255,255,0.03)", padding: "1px 6px", borderRadius: "4px", fontSize: "10.5px", border: "1px solid var(--border)" }}>
+                {activeConn.user}@{activeConn.host}:{activeConn.port}/{activeConn.database}
               </code>
             </p>
           </div>
           <button
             className="btn-danger"
             onClick={handleDisconnect}
-            style={{ padding: "6px 12px", fontSize: "12px" }}
+            style={{
+              padding: "6px 14px",
+              fontSize: "11px",
+              fontWeight: "600",
+              borderRadius: "var(--radius-sm)",
+              transition: "all var(--transition-fast)",
+              boxShadow: "0 2px 8px rgba(255, 92, 114, 0.1)",
+            }}
           >
             Disconnect Studio
           </button>
@@ -459,15 +579,16 @@ export default function DbManagerPage() {
         <div
           style={{
             display: "flex",
-            gap: "16px",
+            gap: "8px",
             borderBottom: "1px solid var(--border)",
+            paddingBottom: "1px",
           }}
         >
           <div
             style={{
               padding: "8px 16px",
               cursor: "pointer",
-              fontSize: "13px",
+              fontSize: "12.5px",
               fontWeight: "600",
               color:
                 activeTab === "data"
@@ -479,17 +600,33 @@ export default function DbManagerPage() {
                   : "2px solid transparent",
               display: "flex",
               alignItems: "center",
-              gap: "6px",
+              gap: "8px",
+              transition: "all var(--transition-fast)",
             }}
             onClick={() => setActiveTab("data")}
           >
-            <TableIcon size={14} /> Data Browser
+            <TableIcon size={14} />
+            <span>Data Browser</span>
+            <kbd
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid var(--border)",
+                borderRadius: "4px",
+                padding: "1px 4px",
+                fontSize: "9px",
+                color: "var(--text-muted)",
+                fontWeight: "500",
+                fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+              }}
+            >
+              ⌥1
+            </kbd>
           </div>
           <div
             style={{
               padding: "8px 16px",
               cursor: "pointer",
-              fontSize: "13px",
+              fontSize: "12.5px",
               fontWeight: "600",
               color:
                 activeTab === "sql"
@@ -501,11 +638,27 @@ export default function DbManagerPage() {
                   : "2px solid transparent",
               display: "flex",
               alignItems: "center",
-              gap: "6px",
+              gap: "8px",
+              transition: "all var(--transition-fast)",
             }}
             onClick={() => setActiveTab("sql")}
           >
-            <Terminal size={14} /> SQL Editor
+            <Terminal size={14} />
+            <span>SQL Editor</span>
+            <kbd
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid var(--border)",
+                borderRadius: "4px",
+                padding: "1px 4px",
+                fontSize: "9px",
+                color: "var(--text-muted)",
+                fontWeight: "500",
+                fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+              }}
+            >
+              ⌥2
+            </kbd>
           </div>
         </div>
 
@@ -515,150 +668,180 @@ export default function DbManagerPage() {
           <div
             className="glass-card"
             style={{
-              width: "230px",
+              width: "240px",
               display: "flex",
               flexDirection: "column",
-              padding: "14px",
+              padding: "16px 12px",
               overflowY: "auto",
               flexShrink: 0,
               background: "var(--bg-secondary)",
+              borderRight: "1px solid var(--border)",
               boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+              borderRadius: "var(--radius-md)",
             }}
           >
             <div
               style={{
-                fontWeight: "600",
-                fontSize: "10.5px",
+                fontWeight: "700",
+                fontSize: "10px",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                marginBottom: "12px",
+                marginBottom: "16px",
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
+                justifyContent: "space-between",
                 color: "var(--text-muted)",
+                padding: "0 4px",
               }}
             >
-              <Layers
-                size={12}
-                color="var(--accent-primary)"
-                style={{ opacity: 0.8 }}
-              />
-              Schema Explorer
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Layers
+                  size={12}
+                  color="var(--accent-primary)"
+                  style={{ filter: "drop-shadow(0 0 2px var(--accent-glow))" }}
+                />
+                <span>Schema Explorer</span>
+              </div>
+              <span
+                style={{
+                  background: "rgba(255, 255, 255, 0.04)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  padding: "1px 6px",
+                  fontSize: "9px",
+                  color: "var(--text-secondary)",
+                  fontWeight: "600",
+                }}
+              >
+                {schemas.length}
+              </span>
             </div>
 
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "1px" }}
+              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
             >
               {schemas.length === 0 ? (
                 <div
                   style={{
                     fontSize: "11px",
                     color: "var(--text-muted)",
-                    padding: "10px 0",
+                    padding: "10px 4px",
+                    textAlign: "center",
+                    border: "1px dashed var(--border)",
+                    borderRadius: "var(--radius-sm)",
                   }}
                 >
-                  No database schemas found.
+                  No schemas found.
                 </div>
               ) : (
                 schemas.map((s) => (
-                  <div key={s.name}>
+                  <div key={s.name} style={{ display: "flex", flexDirection: "column" }}>
                     <div
-                      className={`nav-item ${expandedSchema === s.name ? "active" : ""}`}
                       style={{
-                        padding: "5px 8px",
+                        padding: "6px 10px",
                         borderRadius: "var(--radius-sm)",
                         display: "flex",
                         alignItems: "center",
-                        gap: "6px",
-                        fontSize: "11.5px",
-                        fontWeight: "500",
+                        justifyContent: "space-between",
+                        fontSize: "12px",
+                        fontWeight: expandedSchema === s.name ? "600" : "500",
+                        color: expandedSchema === s.name ? "var(--text-primary)" : "var(--text-secondary)",
                         background:
                           expandedSchema === s.name
-                            ? "linear-gradient(90deg, rgba(110, 86, 207, 0.08) 0%, rgba(110, 86, 207, 0.01) 100%)"
+                            ? "linear-gradient(90deg, rgba(110, 86, 207, 0.1) 0%, rgba(110, 86, 207, 0.01) 100%)"
                             : "transparent",
-                        borderColor:
+                        border:
                           expandedSchema === s.name
-                            ? "rgba(110, 86, 207, 0.15)"
-                            : "transparent",
+                            ? "1px solid rgba(110, 86, 207, 0.15)"
+                            : "1px solid transparent",
                         cursor: "pointer",
+                        transition: "all var(--transition-fast)",
                       }}
                       onClick={() => handleSchemaClick(s.name)}
                     >
-                      <Layout size={11} color="var(--text-secondary)" />
-                      <span>{s.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Layout size={12} color={expandedSchema === s.name ? "var(--accent-primary)" : "var(--text-muted)"} />
+                        <span>{s.name}</span>
+                      </div>
+                      <span style={{ fontSize: "9px", opacity: 0.6 }}>
+                        {expandedSchema === s.name ? "▼" : "▶"}
+                      </span>
                     </div>
 
                     {expandedSchema === s.name && (
                       <div
                         style={{
-                          paddingLeft: "14px",
+                          paddingLeft: "10px",
                           marginTop: "2px",
+                          marginBottom: "4px",
                           display: "flex",
                           flexDirection: "column",
-                          gap: "1px",
+                          gap: "2px",
                           borderLeft: "1px solid var(--border)",
-                          marginLeft: "13px",
+                          marginLeft: "15px",
                         }}
                       >
                         {tables.length === 0 ? (
                           <div
                             style={{
-                              fontSize: "10.5px",
+                              fontSize: "11px",
                               color: "var(--text-muted)",
-                              padding: "5px 8px",
+                              padding: "6px 12px",
+                              fontStyle: "italic",
                             }}
                           >
-                            No tables in schema
+                            No tables found
                           </div>
                         ) : (
-                          tables.map((t) => (
-                            <div
-                              key={t.name}
-                              style={{
-                                padding: "4px 8px",
-                                fontSize: "11.5px",
-                                cursor: "pointer",
-                                borderRadius: "var(--radius-sm)",
-                                background:
-                                  activeTable === t.name
-                                    ? "linear-gradient(90deg, rgba(110, 86, 207, 0.06) 0%, rgba(0,0,0,0) 100%)"
+                          tables.map((t) => {
+                            const isTableActive = activeTable === t.name;
+                            return (
+                              <div
+                                key={t.name}
+                                style={{
+                                  padding: "5px 10px",
+                                  fontSize: "11.5px",
+                                  cursor: "pointer",
+                                  borderRadius: "var(--radius-sm)",
+                                  background: isTableActive
+                                    ? "linear-gradient(90deg, rgba(110, 86, 207, 0.08) 0%, rgba(0,0,0,0) 100%)"
                                     : "transparent",
-                                color:
-                                  activeTable === t.name
+                                  color: isTableActive
                                     ? "var(--text-primary)"
                                     : "var(--text-secondary)",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "5px",
-                                fontWeight:
-                                  activeTable === t.name ? "600" : "normal",
-                                border:
-                                  activeTable === t.name
-                                    ? "1px solid rgba(110, 86, 207, 0.1)"
-                                    : "1px solid transparent",
-                                transition: "all var(--transition-fast)",
-                              }}
-                              onClick={() => handleTableClick(t.name)}
-                            >
-                              <TableIcon
-                                size={10.5}
-                                color={
-                                  activeTable === t.name
-                                    ? "var(--accent-primary)"
-                                    : "var(--text-muted)"
-                                }
-                              />
-                              <span
-                                style={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  fontWeight: isTableActive ? "600" : "500",
+                                  borderLeft: isTableActive
+                                    ? "2px solid var(--accent-primary)"
+                                    : "2px solid transparent",
+                                  paddingLeft: isTableActive ? "8px" : "10px",
+                                  transition: "all var(--transition-fast)",
                                 }}
+                                onClick={() => handleTableClick(t.name)}
                               >
-                                {t.name}
-                              </span>
-                            </div>
-                          ))
+                                <TableIcon
+                                  size={11}
+                                  color={
+                                    isTableActive
+                                      ? "var(--accent-primary)"
+                                      : "var(--text-muted)"
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={t.name}
+                                >
+                                  {t.name}
+                                </span>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     )}
@@ -708,31 +891,40 @@ export default function DbManagerPage() {
                   display: "flex",
                   flexDirection: "column",
                   minHeight: 0,
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
+                  background: "var(--bg-secondary)",
                 }}
               >
                 {/* Data Browser Toolbar */}
                 <div
                   style={{
-                    padding: "10px 14px",
+                    padding: "10px 16px",
                     borderBottom: "1px solid var(--border)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    background: "var(--bg-secondary)",
+                    background: "rgba(255, 255, 255, 0.01)",
                   }}
                 >
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     <button
                       className="btn-primary"
                       onClick={openAddModal}
                       disabled={!activeTable}
                       style={{
-                        padding: "4px 10px",
-                        fontSize: "11px",
-                        height: "26px",
+                        padding: "4px 12px",
+                        fontSize: "11.5px",
+                        height: "28px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        borderRadius: "var(--radius-sm)",
                       }}
                     >
-                      <Plus size={12} /> Add Row
+                      <Plus size={12} strokeWidth={2.5} />
+                      <span>Add Row</span>
                     </button>
                     {selectedRowIndices.length > 0 && (
                       <button
@@ -741,25 +933,61 @@ export default function DbManagerPage() {
                         style={{
                           color: "var(--danger)",
                           borderColor: "var(--danger-border)",
-                          padding: "4px 10px",
-                          fontSize: "11px",
-                          height: "26px",
+                          background: "var(--danger-bg)",
+                          padding: "4px 12px",
+                          fontSize: "11.5px",
+                          height: "28px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          borderRadius: "var(--radius-sm)",
+                          transition: "all var(--transition-fast)",
                         }}
                       >
-                        <Trash2 size={12} /> Delete ({selectedRowIndices.length}
-                        )
+                        <Trash2 size={12} />
+                        <span>Delete Selected ({selectedRowIndices.length})</span>
                       </button>
                     )}
                     <button
                       className="btn-outline"
                       onClick={() => loadTableData(tableReq)}
                       disabled={!activeTable || dataLoading}
-                      style={{ padding: "4px 8px", height: "26px" }}
+                      style={{
+                        padding: "4px 10px",
+                        height: "28px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "var(--radius-sm)",
+                      }}
+                      title="Refresh (⌘R)"
                     >
                       <RefreshCw
                         size={12}
                         className={dataLoading ? "spin" : ""}
+                        style={{ opacity: dataLoading ? 0.7 : 1 }}
                       />
+                    </button>
+
+                    <button
+                      className="btn-outline"
+                      onClick={() => setShowShortcutsGuide(!showShortcutsGuide)}
+                      style={{
+                        padding: "4px 10px",
+                        height: "28px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "11.5px",
+                        borderRadius: "var(--radius-sm)",
+                        color: showShortcutsGuide ? "var(--accent-hover)" : "var(--text-secondary)",
+                        borderColor: showShortcutsGuide ? "var(--border-active)" : "var(--border)",
+                        background: showShortcutsGuide ? "var(--bg-hover)" : "transparent",
+                      }}
+                      title="Toggle Shortcuts Panel"
+                    >
+                      <Keyboard size={13} />
+                      <span>Shortcuts</span>
                     </button>
                   </div>
 
@@ -768,112 +996,152 @@ export default function DbManagerPage() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "12px",
-                        fontSize: "11px",
+                        gap: "14px",
+                        fontSize: "11.5px",
                         color: "var(--text-secondary)",
                       }}
                     >
-                      <span>
-                        Showing {(tableData.page - 1) * tableData.page_size + 1}{" "}
+                      <span style={{ fontWeight: "500" }}>
+                        Showing{" "}
+                        <strong style={{ color: "var(--text-primary)" }}>
+                          {(tableData.page - 1) * tableData.page_size + 1}
+                        </strong>{" "}
                         -{" "}
-                        {Math.min(
-                          tableData.page * tableData.page_size,
-                          tableData.total_rows,
-                        )}{" "}
-                        of {tableData.total_rows} rows
+                        <strong style={{ color: "var(--text-primary)" }}>
+                          {Math.min(
+                            tableData.page * tableData.page_size,
+                            tableData.total_rows,
+                          )}
+                        </strong>{" "}
+                        of{" "}
+                        <strong style={{ color: "var(--text-primary)" }}>
+                          {tableData.total_rows}
+                        </strong>{" "}
+                        rows
                       </span>
+
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "4px",
+                          gap: "6px",
                         }}
                       >
-                        <select
-                          className="input-field"
+                        <CustomSelect
                           value={tableReq.page_size}
-                          onChange={handlePageSizeChange}
-                          style={{
-                            padding: "2px 6px",
-                            fontSize: "11px",
-                            height: "24px",
-                          }}
-                        >
-                          <option value={25}>25 / page</option>
-                          <option value={50}>50 / page</option>
-                          <option value={100}>100 / page</option>
-                        </select>
+                          onChange={(val) =>
+                            handlePageSizeChange({
+                              target: { value: val },
+                            } as any)
+                          }
+                          options={[
+                            { value: 25, label: "25 / page" },
+                            { value: 50, label: "50 / page" },
+                            { value: 100, label: "100 / page" },
+                          ]}
+                          style={{ height: "26px", minWidth: "90px" }}
+                        />
+
                         <button
                           className="btn-outline"
                           onClick={() => handlePageChange(tableReq.page - 1)}
                           disabled={tableReq.page <= 1}
-                          style={{ padding: "2px 6px", height: "24px" }}
+                          style={{
+                            padding: "2px 6px",
+                            height: "26px",
+                            borderRadius: "var(--radius-sm)",
+                          }}
                         >
-                          <ChevronLeft size={14} />
+                          <ChevronLeft size={13} />
                         </button>
-                        <span>
+                        <span style={{ fontWeight: "600", padding: "0 4px" }}>
                           {tableReq.page} / {tableData.total_pages || 1}
                         </span>
                         <button
                           className="btn-outline"
                           onClick={() => handlePageChange(tableReq.page + 1)}
                           disabled={tableReq.page >= tableData.total_pages}
-                          style={{ padding: "2px 6px", height: "24px" }}
+                          style={{
+                            padding: "2px 6px",
+                            height: "26px",
+                            borderRadius: "var(--radius-sm)",
+                          }}
                         >
-                          <ChevronRight size={14} />
+                          <ChevronRight size={13} />
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Data Grid */}
+                {/* Data Grid Scroll Container */}
                 <div
                   style={{
                     flex: 1,
                     overflow: "auto",
                     background: "var(--bg-primary)",
+                    borderRadius: "0 0 var(--radius-md) var(--radius-md)",
+                    position: "relative",
                   }}
                 >
                   {!activeTable ? (
                     <div
                       style={{
                         display: "flex",
+                        flexDirection: "column",
                         height: "100%",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "var(--text-muted)",
-                        fontSize: "12px",
+                        color: "var(--text-secondary)",
+                        padding: "40px",
+                        gap: "12px",
                       }}
                     >
-                      Select a table from the Schema Explorer to view its data.
+                      <Database
+                        size={32}
+                        color="var(--text-muted)"
+                        style={{ filter: "drop-shadow(0 0 4px rgba(255,255,255,0.02))" }}
+                      />
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>
+                        No Table Selected
+                      </div>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, textAlign: "center", maxWidth: "260px", lineHeight: "1.5" }}>
+                        Choose a database table from the Schema Explorer sidebar to browse columns, rows and perform GUI data mutations.
+                      </p>
                     </div>
                   ) : !tableData ? (
                     <div
                       style={{
                         display: "flex",
+                        flexDirection: "column",
                         height: "100%",
                         alignItems: "center",
                         justifyContent: "center",
                         color: "var(--text-muted)",
-                        fontSize: "12px",
+                        gap: "10px",
                       }}
                     >
-                      Loading data...
+                      <RefreshCw size={24} className="spin" color="var(--accent-primary)" />
+                      <div style={{ fontSize: "11px", fontWeight: "500" }}>Loading table dataset...</div>
                     </div>
                   ) : tableData.columns.length === 0 ? (
                     <div
                       style={{
                         display: "flex",
+                        flexDirection: "column",
                         height: "100%",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "var(--accent-primary)",
-                        fontSize: "12px",
-                        gap: "6px",
+                        color: "var(--warning)",
+                        padding: "30px",
+                        gap: "8px",
                       }}
                     >
-                      Table has no columns.
+                      <AlertCircle size={28} />
+                      <div style={{ fontSize: "12px", fontWeight: "600" }}>Empty Table Schema</div>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, textAlign: "center" }}>
+                        This table does not contain any defined columns.
+                      </p>
                     </div>
                   ) : (
                     <table
@@ -890,20 +1158,21 @@ export default function DbManagerPage() {
                               position: "sticky",
                               top: 0,
                               background: "var(--bg-secondary)",
-                              padding: "6px 12px",
+                              padding: "8px 12px",
                               borderBottom: "1px solid var(--border)",
                               width: "40px",
+                              zIndex: 10,
+                              textAlign: "center",
                             }}
                           >
-                            <input
-                              type="checkbox"
+                            <CustomCheckbox
                               checked={
                                 selectedRowIndices.length ===
                                   tableData.rows.length &&
                                 tableData.rows.length > 0
                               }
-                              onChange={(e) => {
-                                if (e.target.checked)
+                              onChange={(checked) => {
+                                if (checked)
                                   setSelectedRowIndices(
                                     tableData.rows.map((_, i) => i),
                                   );
@@ -917,43 +1186,40 @@ export default function DbManagerPage() {
                               onClick={() => handleSort(c.name)}
                               style={{
                                 textAlign: "left",
-                                padding: "8px 12px",
+                                padding: "10px 14px",
                                 borderBottom: "1px solid var(--border)",
                                 color:
                                   tableReq.sort_col === c.name
-                                    ? "var(--accent-primary)"
+                                    ? "var(--accent-hover)"
                                     : "var(--text-primary)",
                                 fontWeight: "700",
                                 position: "sticky",
                                 top: 0,
                                 background: "var(--bg-secondary)",
-                                fontFamily:
-                                  "var(--font-mono, 'Geist Mono', monospace)",
+                                fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
                                 cursor: "pointer",
                                 whiteSpace: "nowrap",
+                                zIndex: 10,
+                                letterSpacing: "-0.01em",
+                                transition: "color var(--transition-fast)",
                               }}
+                              className="column-header"
                             >
-                              {c.is_primary_key && (
-                                <span
-                                  style={{
-                                    color: "var(--warning)",
-                                    marginRight: "4px",
-                                  }}
-                                >
-                                  🔑
-                                </span>
-                              )}
-                              {c.name}
-                              {tableReq.sort_col === c.name && (
-                                <span
-                                  style={{
-                                    marginLeft: "4px",
-                                    fontSize: "10px",
-                                  }}
-                                >
-                                  {tableReq.sort_dir === "asc" ? "▲" : "▼"}
-                                </span>
-                              )}
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                {c.is_primary_key && (
+                                  <Key
+                                    size={10}
+                                    color="var(--warning)"
+                                    style={{ transform: "rotate(-45deg)", filter: "drop-shadow(0 0 2px rgba(245,158,11,0.3))" }}
+                                  />
+                                )}
+                                <span>{c.name}</span>
+                                {tableReq.sort_col === c.name && (
+                                  <span style={{ color: "var(--accent-primary)", fontSize: "10px" }}>
+                                    {tableReq.sort_dir === "asc" ? "▲" : "▼"}
+                                  </span>
+                                )}
+                              </div>
                             </th>
                           ))}
                         </tr>
@@ -965,90 +1231,115 @@ export default function DbManagerPage() {
                               colSpan={tableData.columns.length + 1}
                               style={{
                                 textAlign: "center",
-                                padding: "20px",
+                                padding: "40px 20px",
                                 color: "var(--text-muted)",
+                                fontSize: "12px",
                               }}
                             >
-                              Table is empty.
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                <TableIcon size={24} style={{ opacity: 0.3 }} />
+                                <span>No rows in this dataset.</span>
+                              </div>
                             </td>
                           </tr>
                         ) : (
-                          tableData.rows.map((row, rIdx) => (
-                            <tr
-                              key={rIdx}
-                              style={{
-                                borderBottom: "1px solid var(--border)",
-                                background: selectedRowIndices.includes(rIdx)
-                                  ? "var(--bg-hover)"
-                                  : "transparent",
-                              }}
-                              className="log-row"
-                            >
-                              <td style={{ padding: "6px 12px" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRowIndices.includes(rIdx)}
-                                  onChange={() => toggleRowSelection(rIdx)}
-                                />
-                              </td>
-                              {row.map((val, cIdx) => (
+                          tableData.rows.map((row, rIdx) => {
+                            const isRowSelected = selectedRowIndices.includes(rIdx);
+                            return (
+                              <tr
+                                key={rIdx}
+                                style={{
+                                  borderBottom: "1px solid var(--border)",
+                                  background: isRowSelected
+                                    ? "rgba(110, 86, 207, 0.05)"
+                                    : "transparent",
+                                  transition: "background var(--transition-fast)",
+                                }}
+                                className="log-row"
+                              >
                                 <td
-                                  key={cIdx}
-                                  onDoubleClick={() =>
-                                    handleCellDoubleClick(rIdx, cIdx)
-                                  }
                                   style={{
-                                    padding: "8px 12px",
-                                    whiteSpace: "nowrap",
-                                    maxWidth: "240px",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    color: "var(--text-secondary)",
-                                    fontFamily:
-                                      "var(--font-mono, 'Geist Mono', monospace)",
-                                    cursor: "cell",
+                                    padding: "6px 12px",
+                                    textAlign: "center",
+                                    borderRight: "1px solid var(--border)",
+                                    width: "40px",
                                   }}
                                 >
-                                  {editingCell?.rIdx === rIdx &&
-                                  editingCell?.cIdx === cIdx ? (
-                                    <input
-                                      autoFocus
-                                      className="input-field"
-                                      style={{
-                                        padding: "2px 4px",
-                                        height: "20px",
-                                        fontSize: "11px",
-                                        width: "100%",
-                                      }}
-                                      value={editValue}
-                                      onChange={(e) =>
-                                        setEditValue(e.target.value)
-                                      }
-                                      onBlur={() => setEditingCell(null)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter")
-                                          handleCellEditSave();
-                                        if (e.key === "Escape")
-                                          setEditingCell(null);
-                                      }}
-                                    />
-                                  ) : val === null ? (
-                                    <span
-                                      style={{
-                                        color: "var(--text-muted)",
-                                        fontSize: "10px",
-                                        fontStyle: "italic",
-                                      }}
-                                    >
-                                      NULL
-                                    </span>
-                                  ) : (
-                                    String(val)
-                                  )}
+                                  <CustomCheckbox
+                                    checked={isRowSelected}
+                                    onChange={() => toggleRowSelection(rIdx)}
+                                  />
                                 </td>
-                              ))}
-                            </tr>
-                          ))
+                                {row.map((val, cIdx) => (
+                                  <td
+                                    key={cIdx}
+                                    onDoubleClick={() =>
+                                      handleCellDoubleClick(rIdx, cIdx)
+                                    }
+                                    style={{
+                                      padding: "8px 14px",
+                                      whiteSpace: "nowrap",
+                                      maxWidth: "280px",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      color: isRowSelected ? "var(--text-primary)" : "var(--text-secondary)",
+                                      fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+                                      cursor: "cell",
+                                      borderRight: "1px solid var(--border)",
+                                      transition: "all var(--transition-fast)",
+                                    }}
+                                  >
+                                    {editingCell?.rIdx === rIdx &&
+                                    editingCell?.cIdx === cIdx ? (
+                                      <input
+                                        autoFocus
+                                        className="input-field"
+                                        style={{
+                                          padding: "2px 6px",
+                                          height: "22px",
+                                          fontSize: "11px",
+                                          width: "100%",
+                                          outline: "1px solid var(--border-active)",
+                                          boxShadow: "0 0 6px var(--accent-glow)",
+                                          background: "var(--bg-tertiary)",
+                                          color: "var(--text-primary)",
+                                          border: "none",
+                                          borderRadius: "4px",
+                                        }}
+                                        value={editValue}
+                                        onChange={(e) =>
+                                          setEditValue(e.target.value)
+                                        }
+                                        onBlur={() => setEditingCell(null)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter")
+                                            handleCellEditSave();
+                                          if (e.key === "Escape")
+                                            setEditingCell(null);
+                                        }}
+                                      />
+                                    ) : val === null ? (
+                                      <span
+                                        style={{
+                                          color: "var(--text-muted)",
+                                          fontSize: "9px",
+                                          fontStyle: "italic",
+                                          background: "rgba(255, 255, 255, 0.02)",
+                                          border: "1px solid var(--border)",
+                                          borderRadius: "3px",
+                                          padding: "1px 4px",
+                                        }}
+                                      >
+                                        NULL
+                                      </span>
+                                    ) : (
+                                      String(val)
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
@@ -1298,7 +1589,8 @@ export default function DbManagerPage() {
               left: 0,
               right: 0,
               bottom: 0,
-              background: "rgba(0,0,0,0.7)",
+              background: "rgba(0, 0, 0, 0.5)",
+              backdropFilter: "blur(8px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1308,11 +1600,16 @@ export default function DbManagerPage() {
             <div
               className="glass-card"
               style={{
-                width: "500px",
+                width: "480px",
                 maxHeight: "80vh",
                 display: "flex",
                 flexDirection: "column",
-                padding: "24px",
+                padding: "20px 24px",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-hover)",
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1)",
+                borderRadius: "var(--radius-lg)",
+                animation: "scaleInModal 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards",
               }}
             >
               <div
@@ -1320,27 +1617,32 @@ export default function DbManagerPage() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "20px",
+                  marginBottom: "16px",
+                  borderBottom: "1px solid var(--border)",
+                  paddingBottom: "12px",
                 }}
               >
                 <h3
                   style={{
                     margin: 0,
-                    fontSize: "16px",
+                    fontSize: "14px",
+                    fontWeight: "700",
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
+                    color: "var(--text-primary)",
                   }}
                 >
-                  <Plus size={16} color="var(--accent-primary)" />
+                  <Plus size={16} color="var(--accent-primary)" style={{ filter: "drop-shadow(0 0 2px var(--accent-glow))" }} />
                   Add Row to {tableReq.table}
                 </h3>
                 <button
                   className="btn-outline"
                   onClick={() => setShowAddModal(false)}
-                  style={{ padding: "4px", border: "none" }}
+                  style={{ padding: "4px", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Close (Esc)"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </button>
               </div>
 
@@ -1348,27 +1650,25 @@ export default function DbManagerPage() {
                 onSubmit={handleAddSubmit}
                 style={{
                   overflowY: "auto",
-                  paddingRight: "8px",
+                  paddingRight: "6px",
                   display: "flex",
                   flexDirection: "column",
-                  gap: "12px",
+                  gap: "14px",
                   flex: 1,
                 }}
               >
                 {tableData.columns.map((col) => {
                   if (col.is_primary_key && col.data_type.includes("integer")) {
-                    // rough heuristic for auto-increment pk
                     return null;
                   }
                   return (
-                    <div key={col.name}>
+                    <div key={col.name} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <label
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
                           fontSize: "11px",
                           color: "var(--text-secondary)",
-                          marginBottom: "4px",
                           fontWeight: "600",
                         }}
                       >
@@ -1378,14 +1678,20 @@ export default function DbManagerPage() {
                             style={{
                               color: "var(--text-muted)",
                               fontWeight: "normal",
+                              fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+                              fontSize: "10px",
                             }}
                           >
-                            {col.data_type}
+                            ({col.data_type})
                           </span>
                         </span>
-                        {col.is_nullable && (
-                          <span style={{ color: "var(--text-muted)" }}>
+                        {col.is_nullable ? (
+                          <span style={{ color: "var(--text-muted)", fontSize: "10px", fontWeight: "normal" }}>
                             Optional
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--danger)", fontSize: "10px", fontWeight: "normal" }}>
+                            Required
                           </span>
                         )}
                       </label>
@@ -1405,6 +1711,17 @@ export default function DbManagerPage() {
                           })
                         }
                         required={!col.is_nullable && !col.default_value}
+                        style={{
+                          background: "var(--bg-tertiary)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-sm)",
+                          padding: "6px 10px",
+                          fontSize: "11.5px",
+                          height: "30px",
+                          color: "var(--text-primary)",
+                          transition: "all var(--transition-fast)",
+                        }}
+                        placeholder={col.default_value ? `Default: ${col.default_value}` : `Enter ${col.name}`}
                       />
                     </div>
                   );
@@ -1413,23 +1730,172 @@ export default function DbManagerPage() {
                   style={{
                     display: "flex",
                     justifyContent: "flex-end",
-                    gap: "12px",
-                    marginTop: "20px",
+                    gap: "8px",
+                    marginTop: "16px",
+                    borderTop: "1px solid var(--border)",
+                    paddingTop: "14px",
                   }}
                 >
                   <button
                     type="button"
                     className="btn-outline"
                     onClick={() => setShowAddModal(false)}
+                    style={{ padding: "6px 14px", fontSize: "11.5px", height: "30px" }}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn-primary">
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ padding: "6px 14px", fontSize: "11.5px", height: "30px", fontWeight: "600" }}
+                  >
                     Insert Row
                   </button>
                 </div>
               </form>
             </div>
+            <style>{`
+              @keyframes scaleInModal {
+                from {
+                  transform: scale(0.96);
+                  opacity: 0;
+                }
+                to {
+                  transform: scale(1);
+                  opacity: 1;
+                }
+              }
+            `}</style>
+          </div>
+        )}
+
+        {/* Keyboard Shortcuts Floating Guide Panel */}
+        {showShortcutsGuide && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0, 0, 0, 0.4)",
+              backdropFilter: "blur(6px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 100,
+            }}
+            onClick={() => setShowShortcutsGuide(false)}
+          >
+            <div
+              className="glass-card"
+              style={{
+                width: "400px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-hover)",
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.1)",
+                borderRadius: "var(--radius-lg)",
+                animation: "scaleInShortcuts 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid var(--border)",
+                  paddingBottom: "12px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Keyboard size={16} color="var(--accent-primary)" style={{ filter: "drop-shadow(0 0 2px var(--accent-glow))" }} />
+                  <h3 style={{ margin: 0, fontSize: "13.5px", fontWeight: "700" }}>
+                    Keyboard Shortcuts Guide
+                  </h3>
+                </div>
+                <button
+                  className="btn-outline"
+                  onClick={() => setShowShortcutsGuide(false)}
+                  style={{ padding: "4px", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Close (Esc)"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {[
+                  { keys: ["⌥", "1"], desc: "Switch to Data Browser" },
+                  { keys: ["⌥", "2"], desc: "Switch to SQL Editor" },
+                  { keys: ["Ctrl", "Enter"], desc: "Run SQL Query" },
+                  { keys: ["Ctrl", "R"], desc: "Refresh Table Data" },
+                  { keys: ["⌥", "N"], desc: "Open Add Row Modal" },
+                  { keys: ["Delete"], desc: "Delete Selected Rows" },
+                  { keys: ["Esc"], desc: "Close Modals / Cancel Editing" },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: "11.5px",
+                    }}
+                  >
+                    <span style={{ color: "var(--text-secondary)", fontWeight: "500" }}>{item.desc}</span>
+                    <div style={{ display: "flex", gap: "3px" }}>
+                      {item.keys.map((k, kIdx) => (
+                        <kbd
+                          key={kIdx}
+                          style={{
+                            background: "var(--bg-tertiary)",
+                            border: "1px solid var(--border-hover)",
+                            borderRadius: "4px",
+                            padding: "2px 6px",
+                            fontSize: "10px",
+                            fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+                            color: "var(--text-primary)",
+                            boxShadow: "0 1px 1px rgba(0, 0, 0, 0.2)",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {k}
+                        </kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  fontSize: "10.5px",
+                  color: "var(--text-muted)",
+                  textAlign: "center",
+                  borderTop: "1px solid var(--border)",
+                  paddingTop: "12px",
+                }}
+              >
+                Press <kbd style={{ background: "rgba(255,255,255,0.03)", padding: "1px 4px", borderRadius: "3px", fontWeight: "600" }}>Esc</kbd> anywhere to close overlays.
+              </div>
+            </div>
+            <style>{`
+              @keyframes scaleInShortcuts {
+                from {
+                  transform: scale(0.95);
+                  opacity: 0;
+                }
+                to {
+                  transform: scale(1);
+                  opacity: 1;
+                }
+              }
+            `}</style>
           </div>
         )}
       </div>
@@ -1446,29 +1912,59 @@ export default function DbManagerPage() {
         display: "flex",
         flexDirection: "column",
         gap: "24px",
+        padding: "20px 0",
       }}
     >
-      {/* Title */}
+      {/* Title Panel */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          borderBottom: "1px solid var(--border)",
+          paddingBottom: "16px",
         }}
       >
         <div>
-          <h1 className="page-title">DB Manager</h1>
-          <p className="page-subtitle" style={{ marginBottom: 0 }}>
-            Create database tunnels and configure connections
+          <h1
+            className="page-title"
+            style={{
+              fontSize: "22px",
+              fontWeight: "800",
+              letterSpacing: "-0.02em",
+              marginBottom: "4px",
+              color: "var(--text-primary)",
+            }}
+          >
+            Database Studio
+          </h1>
+          <p
+            className="page-subtitle"
+            style={{
+              marginBottom: 0,
+              fontSize: "12px",
+              color: "var(--text-secondary)",
+            }}
+          >
+            Manage production tunnels, browse tables, and configure query workspaces
           </p>
         </div>
         <button
           className="btn-primary"
           onClick={() => setShowForm(!showForm)}
-          style={{ padding: "6px 12px", fontSize: "12px", gap: "6px" }}
+          style={{
+            padding: "8px 16px",
+            fontSize: "11.5px",
+            height: "32px",
+            fontWeight: "600",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            borderRadius: "var(--radius-sm)",
+          }}
         >
-          <Plus size={14} />
-          New Connection
+          <Plus size={14} strokeWidth={2.5} />
+          <span>New Endpoint</span>
         </button>
       </div>
 
@@ -1494,35 +1990,48 @@ export default function DbManagerPage() {
 
       {/* Connection Creation Wizard Panel */}
       {showForm && (
-        <div className="glass-card" style={{ animation: "fadeIn 0.2s ease" }}>
+        <div
+          className="glass-card"
+          style={{
+            padding: "24px",
+            border: "1px solid var(--border-hover)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+            background: "var(--bg-secondary)",
+            animation: "slideDownWizard 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+          }}
+        >
           <h3
             style={{
-              marginBottom: "16px",
-              fontSize: "13px",
-              fontWeight: "600",
+              marginBottom: "18px",
+              fontSize: "12px",
+              fontWeight: "700",
               color: "var(--text-primary)",
               textTransform: "uppercase",
-              letterSpacing: "0.05em",
+              letterSpacing: "0.08em",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}
           >
-            Create PostgreSQL Connection
+            <Server size={14} color="var(--accent-primary)" style={{ filter: "drop-shadow(0 0 2px var(--accent-glow))" }} />
+            New PostgreSQL Tunnel
           </h3>
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: "14px",
+              gap: "16px",
             }}
           >
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <label
                 style={{
-                  display: "block",
                   fontSize: "10px",
                   color: "var(--text-secondary)",
-                  marginBottom: "4px",
                   fontWeight: "600",
                   textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Alias Name
@@ -1534,18 +2043,18 @@ export default function DbManagerPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="Production DB"
+                placeholder="Production PostgreSQL"
+                style={{ height: "32px", fontSize: "12px", background: "var(--bg-tertiary)" }}
               />
             </div>
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <label
                 style={{
-                  display: "block",
                   fontSize: "10px",
                   color: "var(--text-secondary)",
-                  marginBottom: "4px",
                   fontWeight: "600",
                   textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Database Name
@@ -1557,17 +2066,17 @@ export default function DbManagerPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, database: e.target.value })
                 }
+                style={{ height: "32px", fontSize: "12px", background: "var(--bg-tertiary)" }}
               />
             </div>
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <label
                 style={{
-                  display: "block",
                   fontSize: "10px",
                   color: "var(--text-secondary)",
-                  marginBottom: "4px",
                   fontWeight: "600",
                   textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Host Address
@@ -1579,17 +2088,17 @@ export default function DbManagerPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, host: e.target.value })
                 }
+                style={{ height: "32px", fontSize: "12px", background: "var(--bg-tertiary)" }}
               />
             </div>
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <label
                 style={{
-                  display: "block",
                   fontSize: "10px",
                   color: "var(--text-secondary)",
-                  marginBottom: "4px",
                   fontWeight: "600",
                   textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Port Number
@@ -1601,20 +2110,20 @@ export default function DbManagerPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, port: parseInt(e.target.value) })
                 }
+                style={{ height: "32px", fontSize: "12px", background: "var(--bg-tertiary)" }}
               />
             </div>
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <label
                 style={{
-                  display: "block",
                   fontSize: "10px",
                   color: "var(--text-secondary)",
-                  marginBottom: "4px",
                   fontWeight: "600",
                   textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
-                User Credentials
+                User Username
               </label>
               <input
                 type="text"
@@ -1623,17 +2132,17 @@ export default function DbManagerPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, user: e.target.value })
                 }
+                style={{ height: "32px", fontSize: "12px", background: "var(--bg-tertiary)" }}
               />
             </div>
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <label
                 style={{
-                  display: "block",
                   fontSize: "10px",
                   color: "var(--text-secondary)",
-                  marginBottom: "4px",
                   fontWeight: "600",
                   textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Password
@@ -1646,6 +2155,7 @@ export default function DbManagerPage() {
                   setFormData({ ...formData, password: e.target.value })
                 }
                 placeholder="••••••••"
+                style={{ height: "32px", fontSize: "12px", background: "var(--bg-tertiary)" }}
               />
             </div>
           </div>
@@ -1654,25 +2164,39 @@ export default function DbManagerPage() {
             style={{
               display: "flex",
               gap: "8px",
-              marginTop: "24px",
+              marginTop: "20px",
               justifyContent: "flex-end",
+              borderTop: "1px solid var(--border)",
+              paddingTop: "14px",
             }}
           >
             <button
               className="btn-outline"
               onClick={() => setShowForm(false)}
-              style={{ padding: "6px 14px", fontSize: "12px" }}
+              style={{ padding: "6px 14px", fontSize: "11.5px", height: "30px" }}
             >
               Cancel
             </button>
             <button
               className="btn-primary"
               onClick={handleSaveConnection}
-              style={{ padding: "6px 14px", fontSize: "12px" }}
+              style={{ padding: "6px 14px", fontSize: "11.5px", height: "30px", fontWeight: "600" }}
             >
               Save Endpoint
             </button>
           </div>
+          <style>{`
+            @keyframes slideDownWizard {
+              from {
+                transform: translateY(-8px);
+                opacity: 0;
+              }
+              to {
+                transform: translateY(0);
+                opacity: 1;
+              }
+            }
+          `}</style>
         </div>
       )}
 
@@ -1680,7 +2204,7 @@ export default function DbManagerPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
           gap: "16px",
         }}
       >
@@ -1694,15 +2218,16 @@ export default function DbManagerPage() {
               alignItems: "center",
               justifyContent: "center",
               padding: "60px 40px",
-              gap: "12px",
+              gap: "14px",
               border: "1px dashed var(--border)",
+              borderRadius: "var(--radius-lg)",
             }}
           >
-            <ServerCrash size={32} style={{ color: "var(--text-muted)" }} />
+            <ServerCrash size={36} style={{ color: "var(--text-muted)", filter: "drop-shadow(0 0 4px rgba(255,92,114,0.05))" }} />
             <div
               style={{
                 fontSize: "14px",
-                fontWeight: "600",
+                fontWeight: "700",
                 color: "var(--text-primary)",
               }}
             >
@@ -1710,15 +2235,15 @@ export default function DbManagerPage() {
             </div>
             <p
               style={{
-                fontSize: "12px",
+                fontSize: "11.5px",
                 color: "var(--text-secondary)",
                 textAlign: "center",
                 maxWidth: "340px",
-                lineHeight: 1.5,
+                lineHeight: 1.6,
+                margin: 0,
               }}
             >
-              Add a PostgreSQL endpoint connection config to launch active
-              database studio query dashboards.
+              Create your first PostgreSQL connection profile to start querying, editing rows, and inspecting tables with the Database Studio GUI.
             </p>
           </div>
         )}
@@ -1726,12 +2251,17 @@ export default function DbManagerPage() {
         {connections.map((conn) => (
           <div
             key={conn.id}
-            className="glass-card"
+            className="glass-card connection-card"
             style={{
               display: "flex",
               flexDirection: "column",
-              padding: "16px",
-              minHeight: "150px",
+              padding: "16px 18px",
+              minHeight: "160px",
+              border: "1px solid var(--border)",
+              background: "var(--bg-secondary)",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+              borderRadius: "var(--radius-md)",
+              transition: "all var(--transition-normal)",
             }}
           >
             {/* Card Header info */}
@@ -1740,20 +2270,21 @@ export default function DbManagerPage() {
                 display: "flex",
                 alignItems: "flex-start",
                 gap: "12px",
-                marginBottom: "16px",
+                marginBottom: "14px",
               }}
             >
               <div
                 style={{
                   padding: "8px",
-                  background: "var(--bg-primary)",
-                  border: "1px solid var(--border)",
+                  background: "rgba(110, 86, 207, 0.08)",
+                  border: "1px solid rgba(110, 86, 207, 0.15)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--accent-primary)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   marginTop: "2px",
+                  boxShadow: "0 0 8px rgba(110, 86, 207, 0.05)",
                 }}
               >
                 <Server size={14} />
@@ -1762,25 +2293,28 @@ export default function DbManagerPage() {
                 <div
                   style={{
                     fontWeight: "700",
-                    fontSize: "13px",
+                    fontSize: "13.5px",
                     color: "var(--text-primary)",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                   }}
+                  title={conn.name}
                 >
                   {conn.name}
                 </div>
                 <div
                   style={{
                     fontSize: "11px",
-                    color: "var(--text-secondary)",
+                    color: "var(--accent-hover)",
                     fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     marginTop: "2px",
+                    fontWeight: "600",
                   }}
+                  title={conn.database}
                 >
                   {conn.database}
                 </div>
@@ -1791,29 +2325,33 @@ export default function DbManagerPage() {
             <div
               style={{
                 fontSize: "11px",
-                color: "var(--text-muted)",
+                color: "var(--text-secondary)",
                 fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                marginBottom: "18px",
+                marginBottom: "16px",
                 borderTop: "1px solid var(--border)",
                 paddingTop: "8px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                opacity: 0.8,
               }}
             >
               {conn.user}@{conn.host}:{conn.port}
             </div>
 
             {/* Actions panel */}
-            <div style={{ display: "flex", gap: "6px", marginTop: "auto" }}>
+            <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
               <button
                 className="btn-primary"
                 style={{
                   flex: 1,
                   justifyContent: "center",
                   padding: "5px 12px",
-                  fontSize: "12px",
+                  fontSize: "11.5px",
                   height: "30px",
+                  fontWeight: "600",
+                  borderRadius: "var(--radius-sm)",
+                  boxShadow: "0 2px 8px rgba(110, 86, 207, 0.1)",
                 }}
                 onClick={() => handleConnect(conn.id)}
                 disabled={loading}
@@ -1826,9 +2364,15 @@ export default function DbManagerPage() {
                 style={{
                   color: "var(--danger)",
                   borderColor: "var(--danger-border)",
+                  background: "transparent",
                   padding: "6px",
                   height: "30px",
                   width: "30px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "var(--radius-sm)",
+                  transition: "all var(--transition-fast)",
                 }}
                 onClick={() => handleDelete(conn.id)}
                 title="Remove Endpoint"
@@ -1839,6 +2383,14 @@ export default function DbManagerPage() {
           </div>
         ))}
       </div>
+      <style>{`
+        .connection-card:hover {
+          transform: translateY(-2px);
+          border-color: var(--border-active) !important;
+          box-shadow: 0 8px 24px var(--accent-glow) !important;
+        }
+      `}</style>
     </div>
   );
 }
+

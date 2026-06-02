@@ -88,7 +88,7 @@ ORDER BY datname`
 	}
 	defer rows.Close()
 
-	var result []domain.DbDatabase
+	result := make([]domain.DbDatabase, 0)
 	for rows.Next() {
 		var db domain.DbDatabase
 		if err := rows.Scan(&db.Name, &db.Owner); err != nil {
@@ -116,7 +116,7 @@ ORDER BY schema_name`
 	}
 	defer rows.Close()
 
-	var result []domain.DbSchema
+	result := make([]domain.DbSchema, 0)
 	for rows.Next() {
 		var s domain.DbSchema
 		if err := rows.Scan(&s.Name); err != nil {
@@ -144,7 +144,7 @@ ORDER BY table_name`
 	}
 	defer rows.Close()
 
-	var result []domain.DbTable
+	result := make([]domain.DbTable, 0)
 	for rows.Next() {
 		var t domain.DbTable
 		if err := rows.Scan(&t.Schema, &t.Name, &t.TableType); err != nil {
@@ -187,7 +187,7 @@ ORDER BY c.ordinal_position`
 	}
 	defer rows.Close()
 
-	var result []domain.DbColumn
+	result := make([]domain.DbColumn, 0)
 	for rows.Next() {
 		var col domain.DbColumn
 		if err := rows.Scan(
@@ -223,7 +223,7 @@ func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*doma
 		colNames[i] = string(f.Name)
 	}
 
-	var resultRows [][]interface{}
+	resultRows := make([][]interface{}, 0)
 	for rows.Next() {
 		vals, err := rows.Values()
 		if err != nil {
@@ -330,7 +330,7 @@ func (p *PostgresManager) GetTableData(ctx context.Context, req domain.TableData
 	}
 	defer rows.Close()
 
-	var resultRows [][]interface{}
+	resultRows := make([][]interface{}, 0)
 	for rows.Next() {
 		vals, err := rows.Values()
 		if err != nil {
