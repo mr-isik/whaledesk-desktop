@@ -12,6 +12,8 @@ type App struct {
 	apiBinding       *bindings.APIBinding
 	dbManagerBinding *bindings.DbManagerBinding
 	envBinding       *bindings.EnvBinding
+	settingsBinding  *bindings.SettingsBinding
+	aiBinding        *bindings.AIBinding
 }
 
 func NewApp(
@@ -20,6 +22,8 @@ func NewApp(
 	api *bindings.APIBinding,
 	dbMgr *bindings.DbManagerBinding,
 	env *bindings.EnvBinding,
+	settings *bindings.SettingsBinding,
+	ai *bindings.AIBinding,
 ) *App {
 	return &App{
 		dockerBinding:    docker,
@@ -27,6 +31,8 @@ func NewApp(
 		apiBinding:       api,
 		dbManagerBinding: dbMgr,
 		envBinding:       env,
+		settingsBinding:  settings,
+		aiBinding:        ai,
 	}
 }
 
@@ -38,4 +44,6 @@ func (a *App) startup(ctx context.Context) {
 	a.apiBinding.Startup(ctx)
 	a.dbManagerBinding.Startup(ctx)
 	a.envBinding.Startup(ctx)
+	a.settingsBinding.Startup(ctx)
+	a.aiBinding.Startup(ctx)
 }

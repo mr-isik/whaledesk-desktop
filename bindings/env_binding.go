@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"context"
+	"encoding/json"
 	"dockit-desktop/internal/domain"
 	"dockit-desktop/internal/usecase"
 )
@@ -48,7 +49,7 @@ func (b *EnvBinding) DeleteVariable(varID string) error {
 	return b.envUC.DeleteVariable(b.ctx, varID)
 }
 
-func (b *EnvBinding) ExecuteRequestWithEnv(method, rawURL, rawPayload string) (*domain.APIRequest, error) {
+func (b *EnvBinding) ExecuteRequestWithEnv(method, rawURL, rawPayload, rawHeadersJSON string) (*domain.APIRequest, error) {
 
 	resolvedURL, err := b.envUC.ResolveTemplate(b.ctx, rawURL)
 	if err != nil {
@@ -60,5 +61,15 @@ func (b *EnvBinding) ExecuteRequestWithEnv(method, rawURL, rawPayload string) (*
 		return nil, err
 	}
 
-	return b.apiUC.ExecuteAndSaveRequest(b.ctx, method, resolvedURL, resolvedPayload)
+	resolvedHeadersJSON, err := b.envUC.ResolveTemplate(b.ctx, rawHeadersJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	var headers map[string]string
+	if resolvedHeadersJSON != "" {
+		_ = json.Unmarshal([]byte(resolvedHeadersJSON), &headers)
+	}
+
+	return b.apiUC.ExecuteAndSaveRequest(b.ctx, method, resolvedURL, resolvedPayload, headers)
 }

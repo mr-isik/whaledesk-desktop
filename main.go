@@ -13,6 +13,7 @@ import (
 	"dockit-desktop/internal/infrastructure/database"
 	"dockit-desktop/internal/infrastructure/docker"
 	"dockit-desktop/internal/infrastructure/httpclient"
+	"dockit-desktop/internal/infrastructure/openai"
 	"dockit-desktop/internal/usecase"
 )
 
@@ -31,6 +32,7 @@ func main() {
 	}
 
 	httpClient := httpclient.NewHTTPClient()
+	openaiClient := openai.NewOpenAIClient()
 
 	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {
@@ -42,14 +44,18 @@ func main() {
 	apiUC := usecase.NewAPIUsecase(httpClient, dbClient)
 	dbManagerUC := usecase.NewDbManagerUsecase(dbClient, cryptoService)
 	envUC := usecase.NewEnvManagerUsecase(dbClient, cryptoService)
+	settingsUC := usecase.NewSettingsUsecase(dbClient, cryptoService)
+	aiUC := usecase.NewAIUsecase(openaiClient, dbClient, dbClient, envUC, cryptoService)
 
 	dockerBinding := bindings.NewDockerBinding(dockerUC)
 	dbBinding := bindings.NewDatabaseBinding(dbUC)
 	apiBinding := bindings.NewAPIBinding(apiUC)
 	dbManagerBinding := bindings.NewDbManagerBinding(dbManagerUC)
 	envBinding := bindings.NewEnvBinding(envUC, apiUC)
+	settingsBinding := bindings.NewSettingsBinding(settingsUC)
+	aiBinding := bindings.NewAIBinding(aiUC)
 
-	app := NewApp(dockerBinding, dbBinding, apiBinding, dbManagerBinding, envBinding)
+	app := NewApp(dockerBinding, dbBinding, apiBinding, dbManagerBinding, envBinding, settingsBinding, aiBinding)
 
 	err = wails.Run(&options.App{
 		Title:  "dockit-desktop",
@@ -67,6 +73,8 @@ func main() {
 			apiBinding,
 			dbManagerBinding,
 			envBinding,
+			settingsBinding,
+			aiBinding,
 		},
 	})
 

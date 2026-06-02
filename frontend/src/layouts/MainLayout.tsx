@@ -7,11 +7,12 @@ import DashboardPage from "../pages/DashboardPage";
 
 import DbManagerPage from "../pages/DbManagerPage";
 import EnvironmentsPage from "../pages/EnvironmentsPage";
+import SettingsPage from "../pages/SettingsPage";
 import { IsDaemonRunning } from "../../wailsjs/go/bindings/DockerBinding";
 import { IsConnected } from "../../wailsjs/go/bindings/DbManagerBinding";
 import "./MainLayout.css";
 
-type PageType = "dashboard" | "containers" | "container-logs" | "api" | "db" | "envs";
+type PageType = "dashboard" | "containers" | "container-logs" | "api" | "db" | "envs" | "settings";
 
 export default function MainLayout() {
   const [activePage, setActivePage] = useState<PageType>("dashboard");
@@ -59,6 +60,11 @@ export default function MainLayout() {
         setActivePage("db");
       } else if (e.key === "6") {
         setActivePage("envs");
+      } else if (e.key === ",") {
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          setActivePage("settings");
+        }
       }
       
       // 3. Focus Search/Filter controls: '/' or 's'
@@ -132,6 +138,8 @@ export default function MainLayout() {
         return <DbManagerPage />;
       case "envs":
         return <EnvironmentsPage />;
+      case "settings":
+        return <SettingsPage />;
       default:
         return <DashboardPage />;
     }
@@ -214,6 +222,17 @@ export default function MainLayout() {
             </div>
             <span className="shortcut-tag">6</span>
           </div>
+
+          <div 
+            className={`nav-item ${activePage === "settings" ? "active" : ""}`} 
+            onClick={() => setActivePage("settings")}
+          >
+            <div className="nav-item-inner">
+              <Settings size={15} />
+              <span>Settings</span>
+            </div>
+            <span className="shortcut-tag">⌘,</span>
+          </div>
         </nav>
 
         {/* Dynamic Sidebar Infrastructure Widget */}
@@ -231,15 +250,6 @@ export default function MainLayout() {
           </div>
         </div>
 
-        <div style={{ flex: 1 }}></div>
-
-        <div className="nav-item" style={{ marginTop: "auto" }}>
-          <div className="nav-item-inner">
-            <Settings size={15} />
-            <span>Settings</span>
-          </div>
-          <span className="shortcut-tag">⌘,</span>
-        </div>
       </aside>
 
       <main className="main-content">{renderContent()}</main>

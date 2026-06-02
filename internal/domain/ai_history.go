@@ -2,13 +2,12 @@ package domain
 
 import "time"
 
-type APIRequest struct {
+type AIHistory struct {
 	ID        int       `json:"id"`
-	URL       string    `json:"url"`
+	DocInput  string    `json:"doc_input"`
 	Method    string    `json:"method"`
+	URL       string    `json:"url"`
 	Headers   string    `json:"headers"`
 	Payload   string    `json:"payload"`
-	Response  string    `json:"response"`
-	Status    int       `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 }

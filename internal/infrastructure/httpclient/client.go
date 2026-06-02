@@ -22,7 +22,7 @@ func NewHTTPClient() *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) SendRequest(ctx context.Context, method string, url string, payload string) (*domain.APIRequest, error) {
+func (c *HTTPClient) SendRequest(ctx context.Context, method string, url string, payload string, headers map[string]string) (*domain.APIRequest, error) {
 	method = strings.ToUpper(method)
 
 	var bodyReader io.Reader
@@ -35,6 +35,11 @@ func (c *HTTPClient) SendRequest(ctx context.Context, method string, url string,
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Apply default headers
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("User-Agent", "Dockit-Desktop/1.0")
+
+	// Set content-type if payload exists
 	if payload != "" {
 		trimmed := strings.TrimSpace(payload)
 		if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
@@ -44,14 +49,19 @@ func (c *HTTPClient) SendRequest(ctx context.Context, method string, url string,
 		}
 	}
 
-	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("User-Agent", "Dockit-Desktop/1.0")
+	// Override with user-provided headers
+	if headers != nil {
+		for key, value := range headers {
+			if value != "" {
+				req.Header.Set(key, value)
+			}
+		}
+	}
 
 	startTime := time.Now()
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-
 		return &domain.APIRequest{
 			URL:       url,
 			Method:    method,

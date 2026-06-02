@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS api_requests (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     url         TEXT    NOT NULL,
     method      TEXT    NOT NULL,
+    headers     TEXT    NOT NULL DEFAULT '{}',
     payload     TEXT,
     response    TEXT,
     status      INTEGER NOT NULL DEFAULT 0,
@@ -80,17 +81,43 @@ CREATE TABLE IF NOT EXISTS db_connections (
 );
 `
 	_, err := s.db.Exec(schema)
+	if err != nil {
+		return err
+	}
+
+	// Migrate existing api_requests table to add headers column if it doesn't exist
+	_, _ = s.db.Exec(`ALTER TABLE api_requests ADD COLUMN headers TEXT NOT NULL DEFAULT '{}'`)
+
+	// Settings and AI History tables
+	const newTablesSchema = `
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ai_request_history (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_input   TEXT,
+    method      TEXT,
+    url         TEXT,
+    headers     TEXT,
+    payload     TEXT,
+    created_at  DATETIME NOT NULL
+);
+`
+	_, err = s.db.Exec(newTablesSchema)
 	return err
 }
 
 func (s *SQLiteDB) SaveAPIRequest(ctx context.Context, req *domain.APIRequest) error {
 	const q = `
-INSERT INTO api_requests (url, method, payload, response, status, created_at)
-VALUES (?, ?, ?, ?, ?, ?)`
+INSERT INTO api_requests (url, method, headers, payload, response, status, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 	result, err := s.db.ExecContext(ctx, q,
 		req.URL,
 		req.Method,
+		req.Headers,
 		req.Payload,
 		req.Response,
 		req.Status,
@@ -110,7 +137,7 @@ VALUES (?, ?, ?, ?, ?, ?)`
 
 func (s *SQLiteDB) GetAPIRequests(ctx context.Context) ([]domain.APIRequest, error) {
 	const q = `
-SELECT id, url, method, payload, response, status, created_at
+SELECT id, url, method, headers, payload, response, status, created_at
 FROM api_requests
 ORDER BY created_at DESC
 LIMIT 200`
@@ -129,6 +156,7 @@ LIMIT 200`
 			&r.ID,
 			&r.URL,
 			&r.Method,
+			&r.Headers,
 			&r.Payload,
 			&r.Response,
 			&r.Status,

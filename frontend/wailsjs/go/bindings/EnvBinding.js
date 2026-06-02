@@ -18,8 +18,8 @@ export function DeleteVariable(arg1) {
   return window['go']['bindings']['EnvBinding']['DeleteVariable'](arg1);
 }
 
-export function ExecuteRequestWithEnv(arg1, arg2, arg3) {
-  return window['go']['bindings']['EnvBinding']['ExecuteRequestWithEnv'](arg1, arg2, arg3);
+export function ExecuteRequestWithEnv(arg1, arg2, arg3, arg4) {
+  return window['go']['bindings']['EnvBinding']['ExecuteRequestWithEnv'](arg1, arg2, arg3, arg4);
 }
 
 export function ListEnvironments() {

@@ -11,7 +11,7 @@ export function DeleteEnvironment(arg1:string):Promise<void>;
 
 export function DeleteVariable(arg1:string):Promise<void>;
 
-export function ExecuteRequestWithEnv(arg1:string,arg2:string,arg3:string):Promise<domain.APIRequest>;
+export function ExecuteRequestWithEnv(arg1:string,arg2:string,arg3:string,arg4:string):Promise<domain.APIRequest>;
 
 export function ListEnvironments():Promise<Array<domain.Environment>>;
 

@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
+
 	"dockit-desktop/internal/domain"
 	"dockit-desktop/internal/ports"
 )
@@ -18,15 +20,19 @@ func NewAPIUsecase(ap ports.APIPort, db ports.DatabasePort) *APIUsecase {
 	}
 }
 
-func (uc *APIUsecase) ExecuteAndSaveRequest(ctx context.Context, method, url, payload string) (*domain.APIRequest, error) {
+func (uc *APIUsecase) ExecuteAndSaveRequest(ctx context.Context, method, url, payload string, headers map[string]string) (*domain.APIRequest, error) {
 
-	req, err := uc.apiPort.SendRequest(ctx, method, url, payload)
+	req, err := uc.apiPort.SendRequest(ctx, method, url, payload, headers)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := uc.dbPort.SaveAPIRequest(ctx, req); err != nil {
+	if headers != nil {
+		hBytes, _ := json.Marshal(headers)
+		req.Headers = string(hBytes)
+	}
 
+	if err := uc.dbPort.SaveAPIRequest(ctx, req); err != nil {
 		return req, err
 	}
 

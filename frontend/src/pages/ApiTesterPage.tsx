@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Send, AlertCircle, Copy, Search, ChevronDown, CheckCircle, Database, Lock, Eye, EyeOff } from 'lucide-react';
+import { Send, AlertCircle, Copy, Search, ChevronDown, CheckCircle, Database, Lock, Eye, EyeOff, Code2, List } from 'lucide-react';
 import { ExecuteRequestWithEnv, ListEnvironments, SetActiveEnvironment } from '../../wailsjs/go/bindings/EnvBinding';
 import { ExecuteRequest } from '../../wailsjs/go/bindings/APIBinding';
 import { domain } from '../../wailsjs/go/models';
+import VariableAutocomplete from '../components/VariableAutocomplete';
+import DraggableVariable from '../components/DraggableVariable';
+import HeaderEditor, { HeaderEntry } from '../components/HeaderEditor';
+import AIPanel from '../components/AIPanel';
 
 export default function ApiTesterPage() {
   const [url, setUrl] = useState('{{base_url}}/users');
   const [method, setMethod] = useState('GET');
   const [payload, setPayload] = useState('{\n  "name": "Alex",\n  "role": "Developer"\n}');
+  const [headers, setHeaders] = useState<HeaderEntry[]>([
+    { id: crypto.randomUUID(), key: 'Content-Type', value: 'application/json', enabled: true }
+  ]);
   const [response, setResponse] = useState<domain.APIRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Tabs
+  const [activeReqTab, setActiveReqTab] = useState<'headers' | 'body'>('body');
+  const [activeSideTab, setActiveSideTab] = useState<'variables' | 'ai'>('variables');
 
   // Environments
   const [environments, setEnvironments] = useState<domain.Environment[]>([]);
@@ -52,12 +63,21 @@ export default function ApiTesterPage() {
     setLoading(true);
     setError('');
     
+    // Prepare headers mapping
+    const headersMap: Record<string, string> = {};
+    headers.forEach(h => {
+      if (h.enabled && h.key) {
+        headersMap[h.key] = h.value;
+      }
+    });
+    const headersJSON = JSON.stringify(headersMap);
+    
     try {
       let res;
       if (activeEnv) {
-        res = await ExecuteRequestWithEnv(method, url, payload);
+        res = await ExecuteRequestWithEnv(method, url, payload, headersJSON);
       } else {
-        res = await ExecuteRequest(method, url, payload);
+        res = await ExecuteRequest(method, url, payload, headersJSON);
       }
       setResponse(res);
     } catch (e: any) {
@@ -85,7 +105,6 @@ export default function ApiTesterPage() {
     v.description?.toLowerCase().includes(searchVar.toLowerCase())
   ) || [];
 
-  // Helper to format/prettify raw JSON response
   const formatJSON = (raw: string) => {
     try {
       const parsed = JSON.parse(raw);
@@ -95,19 +114,32 @@ export default function ApiTesterPage() {
     }
   };
 
+  const handleAIApply = (aiMethod: string, aiUrl: string, aiHeaders: Record<string, string>, aiPayload: string) => {
+    setMethod(aiMethod);
+    setUrl(aiUrl);
+    setPayload(aiPayload);
+    
+    const newHeaders: HeaderEntry[] = Object.entries(aiHeaders).map(([key, value]) => ({
+      id: crypto.randomUUID(),
+      key,
+      value,
+      enabled: true
+    }));
+    setHeaders(newHeaders);
+    setActiveReqTab(aiPayload ? 'body' : 'headers');
+  };
+
   return (
     <div style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 100px)', minHeight: 0 }}>
       
-      {/* Left Area: Request Configuration & Response (Takes 70% space) */}
+      {/* Left Area: Request Configuration & Response */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: "16px", height: '100%' }}>
-        {/* Page Title & Environment Switcher */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h1 className="page-title" style={{ fontSize: '20px', marginBottom: '2px' }}>API Studio</h1>
             <p className="page-subtitle" style={{ marginBottom: 0 }}>Send HTTP requests and monitor network outputs</p>
           </div>
 
-          {/* Premium Env Dropdown */}
           <div style={{ position: 'relative' }}>
             <div 
               className="btn-outline" 
@@ -170,9 +202,8 @@ export default function ApiTesterPage() {
           </div>
         </div>
 
-        {/* HTTP URL Panel */}
-        <div className="glass-card" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
             <select 
               value={method} 
               onChange={(e) => setMethod(e.target.value)}
@@ -186,14 +217,16 @@ export default function ApiTesterPage() {
               <option value="PATCH">PATCH</option>
             </select>
             
-            <input 
-              type="text" 
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="Enter request URL (e.g. {{base_url}}/v1/users)"
-              className="input-field"
-              style={{ flex: 1, fontFamily: "var(--font-mono, 'Geist Mono', monospace)", height: '38px', fontSize: '13px' }}
-            />
+            <div style={{ flex: 1, position: 'relative' }}>
+              <VariableAutocomplete
+                value={url}
+                onChange={setUrl}
+                variables={activeEnv?.variables || []}
+                placeholder="Enter request URL (e.g. {{base_url}}/v1/users)"
+                className="input-field"
+                style={{ width: '100%', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", height: '38px', fontSize: '13px' }}
+              />
+            </div>
 
             <button className="btn-primary" onClick={handleSend} disabled={loading} style={{ padding: '0 18px', height: '38px' }}>
               <Send size={14} />
@@ -201,36 +234,55 @@ export default function ApiTesterPage() {
             </button>
           </div>
 
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Request Payload (JSON)</label>
-              {activeEnv && <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Variables like {'{{key}}'} will resolve</span>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '140px' }}>
+            <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '4px' }}>
+              <button 
+                className="nav-item" 
+                style={{ padding: '4px 8px', fontSize: '12px', background: activeReqTab === 'headers' ? 'var(--bg-hover)' : 'transparent', color: activeReqTab === 'headers' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                onClick={() => setActiveReqTab('headers')}
+              >
+                <List size={12} /> Headers ({headers.length})
+              </button>
+              <button 
+                className="nav-item" 
+                style={{ padding: '4px 8px', fontSize: '12px', background: activeReqTab === 'body' ? 'var(--bg-hover)' : 'transparent', color: activeReqTab === 'body' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                onClick={() => setActiveReqTab('body')}
+              >
+                <Code2 size={12} /> Body
+              </button>
             </div>
-            <textarea 
-              value={payload}
-              onChange={(e) => setPayload(e.target.value)}
-              placeholder={`{\n  "key": "{{variable}}"\n}`}
-              className="input-field"
-              style={{ 
-                height: '80px', 
-                fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                resize: 'vertical',
-                fontSize: '12px',
-                background: 'var(--bg-primary)'
-              }}
-            />
+
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              {activeReqTab === 'headers' ? (
+                <HeaderEditor 
+                  headers={headers} 
+                  onChange={setHeaders} 
+                  variables={activeEnv?.variables || []} 
+                />
+              ) : (
+                <div style={{ height: '100%', position: 'relative' }}>
+                  <VariableAutocomplete
+                    value={payload}
+                    onChange={setPayload}
+                    variables={activeEnv?.variables || []}
+                    multiline
+                    placeholder={`{\n  "key": "{{variable}}"\n}`}
+                    className="input-field"
+                    style={{ width: '100%', height: '100%', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", resize: 'none', fontSize: '12px', background: 'var(--bg-primary)' }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Error Alert */}
         {error && (
           <div className="glass-card" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px' }}>
             <AlertCircle size={16} />
-            <span style={{ fontSize: '12px', fontWeight: '500' }}>{error}</span>
+            <span style={{ fontSize: '12px', fontWeight: '500', wordBreak: 'break-word' }}>{error}</span>
           </div>
         )}
 
-        {/* Response Area */}
         <div className="glass-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: 0, overflow: 'hidden' }}>
           <div style={{ 
             padding: '12px 18px', 
@@ -285,11 +337,11 @@ export default function ApiTesterPage() {
         </div>
       </div>
 
-      {/* Right Area: Variables Explorer Side Panel (Takes 300px) */}
+      {/* Right Area: Sidebar Panels */}
       <div 
         className="glass-card" 
         style={{ 
-          width: '300px', 
+          width: '320px', 
           display: 'flex', 
           flexDirection: 'column', 
           padding: '16px', 
@@ -298,118 +350,138 @@ export default function ApiTesterPage() {
           height: '100%'
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
-          <Database size={16} color="var(--accent-primary)" />
-          <h3 style={{ fontSize: '13px', fontWeight: '600', margin: 0, color: 'var(--text-primary)' }}>Variables Inspector</h3>
+        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
+          <button 
+            className={`btn-outline ${activeSideTab === 'variables' ? 'active' : ''}`}
+            onClick={() => setActiveSideTab('variables')}
+            style={{ flex: 1, padding: '6px', fontSize: '12px', background: activeSideTab === 'variables' ? 'var(--bg-tertiary)' : 'transparent' }}
+          >
+            Variables
+          </button>
+          <button 
+            className={`btn-outline ${activeSideTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveSideTab('ai')}
+            style={{ flex: 1, padding: '6px', fontSize: '12px', background: activeSideTab === 'ai' ? 'var(--bg-tertiary)' : 'transparent' }}
+          >
+            AI Assistant
+          </button>
         </div>
         
-        {!activeEnv ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: "0 10px", lineHeight: 1.6 }}>
-            Select an environment from the header dropdown to view and copy active variables.
-          </div>
-        ) : (
-          <>
-            <div style={{ position: 'relative', marginBottom: '12px' }}>
-              <Search size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Search variables..." 
-                value={searchVar}
-                onChange={e => setSearchVar(e.target.value)}
-                style={{ paddingLeft: '30px', fontSize: '11px', padding: '6px 12px 6px 30px', height: "30px" }}
-              />
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: "4px" }}>
-              {filteredVars.length === 0 ? (
-                <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '20px' }}>No matching variables.</div>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {activeSideTab === 'ai' ? (
+            <AIPanel onApply={handleAIApply} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {!activeEnv ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: "0 10px", lineHeight: 1.6 }}>
+                  Select an environment from the header dropdown to view and copy active variables.
+                </div>
               ) : (
-                filteredVars.map(v => {
-                  const showVal = !v.is_secret || showSecrets[v.key];
-                  return (
-                    <div 
-                      key={v.id} 
-                      style={{ 
-                        padding: '10px', 
-                        background: 'var(--bg-primary)', 
-                        borderRadius: 'var(--radius-sm)', 
-                        border: '1px solid var(--border)',
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "6px"
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: "var(--font-mono, 'Geist Mono', monospace)" }}>
-                          {v.key}
-                        </span>
-                        
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {v.is_secret && (
-                            <button 
-                              className="btn-outline"
-                              onClick={() => toggleSecret(v.key)}
-                              style={{ padding: '3px', border: 'none', height: '18px', width: '18px', background: "transparent" }}
-                              title={showVal ? "Hide secret" : "Reveal secret"}
+                <>
+                  <div style={{ position: 'relative', marginBottom: '12px' }}>
+                    <Search size={12} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Search variables..." 
+                      value={searchVar}
+                      onChange={e => setSearchVar(e.target.value)}
+                      style={{ paddingLeft: '30px', fontSize: '11px', padding: '6px 12px 6px 30px', height: "30px" }}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: "4px" }}>
+                    {filteredVars.length === 0 ? (
+                      <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '20px' }}>No matching variables.</div>
+                    ) : (
+                      filteredVars.map(v => {
+                        const showVal = !v.is_secret || showSecrets[v.key];
+                        return (
+                          <DraggableVariable key={v.id} variable={v}>
+                            <div 
+                              style={{ 
+                                padding: '10px', 
+                                background: 'var(--bg-primary)', 
+                                borderRadius: 'var(--radius-sm)', 
+                                border: '1px solid var(--border)',
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px"
+                              }}
                             >
-                              {showVal ? <EyeOff size={10} /> : <Eye size={10} />}
-                            </button>
-                          )}
-                          <button 
-                            className="btn-outline" 
-                            onClick={() => copyToClipboard(v.key, `{{${v.key}}}`)}
-                            style={{ padding: '2px 6px', fontSize: '9px', border: 'none', height: '18px', display: 'flex', alignItems: 'center', gap: '2px' }}
-                            title="Copy variable reference"
-                          >
-                            {copiedVar === v.key ? <CheckCircle size={10} color="var(--accent-primary)" /> : <Copy size={10} />}
-                            {copiedVar === v.key ? 'Copied' : 'Ref'}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div style={{ 
-                        fontSize: '11px', 
-                        color: v.is_secret && !showVal ? 'var(--text-muted)' : 'var(--text-secondary)', 
-                        fontFamily: v.is_secret && !showVal ? 'inherit' : "var(--font-mono, 'Geist Mono', monospace)", 
-                        whiteSpace: 'nowrap', 
-                        overflow: 'hidden', 
-                        textOverflow: 'ellipsis',
-                        background: "rgba(255,255,255,0.01)",
-                        padding: "3px 6px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "2px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px"
-                      }}>
-                        {v.is_secret && !showVal ? (
-                          <>
-                            <Lock size={10} style={{ color: "var(--text-muted)" }} />
-                            <span>••••••••</span>
-                          </>
-                        ) : (
-                          v.value
-                        )}
-                      </div>
-                      
-                      {v.description && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: "1.3" }}>
-                          {v.description}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: "var(--font-mono, 'Geist Mono', monospace)" }}>
+                                  {v.key}
+                                </span>
+                                
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  {v.is_secret && (
+                                    <button 
+                                      className="btn-outline"
+                                      onClick={() => toggleSecret(v.key)}
+                                      style={{ padding: '3px', border: 'none', height: '18px', width: '18px', background: "transparent" }}
+                                      title={showVal ? "Hide secret" : "Reveal secret"}
+                                    >
+                                      {showVal ? <EyeOff size={10} /> : <Eye size={10} />}
+                                    </button>
+                                  )}
+                                  <button 
+                                    className="btn-outline" 
+                                    onClick={() => copyToClipboard(v.key, `{{${v.key}}}`)}
+                                    style={{ padding: '2px 6px', fontSize: '9px', border: 'none', height: '18px', display: 'flex', alignItems: 'center', gap: '2px' }}
+                                    title="Copy variable reference"
+                                  >
+                                    {copiedVar === v.key ? <CheckCircle size={10} color="var(--accent-primary)" /> : <Copy size={10} />}
+                                    {copiedVar === v.key ? 'Copied' : 'Ref'}
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              <div style={{ 
+                                fontSize: '11px', 
+                                color: v.is_secret && !showVal ? 'var(--text-muted)' : 'var(--text-secondary)', 
+                                fontFamily: v.is_secret && !showVal ? 'inherit' : "var(--font-mono, 'Geist Mono', monospace)", 
+                                whiteSpace: 'nowrap', 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis',
+                                background: "rgba(255,255,255,0.01)",
+                                padding: "3px 6px",
+                                border: "1px solid var(--border)",
+                                borderRadius: "2px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}>
+                                {v.is_secret && !showVal ? (
+                                  <>
+                                    <Lock size={10} style={{ color: "var(--text-muted)" }} />
+                                    <span>••••••••</span>
+                                  </>
+                                ) : (
+                                  v.value
+                                )}
+                              </div>
+                              
+                              {v.description && (
+                                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: "1.3" }}>
+                                  {v.description}
+                                </div>
+                              )}
+                            </div>
+                          </DraggableVariable>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div style={{ marginTop: '12px', fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center', borderTop: "1px solid var(--border)", paddingTop: "10px", lineHeight: "1.4" }}>
+                    Drag cards to inputs or click <strong>Ref</strong> to copy.
+                  </div>
+                </>
               )}
             </div>
-            <div style={{ marginTop: '12px', fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center', borderTop: "1px solid var(--border)", paddingTop: "10px", lineHeight: "1.4" }}>
-              Click <strong>Ref</strong> to copy the interpolation tag (e.g. <code>{"{{API_KEY}}"}</code>) directly.
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
-
     </div>
   );
 }

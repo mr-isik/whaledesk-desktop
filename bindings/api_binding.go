@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"context"
+	"encoding/json"
 	"dockit-desktop/internal/domain"
 	"dockit-desktop/internal/usecase"
 )
@@ -21,6 +22,10 @@ func (b *APIBinding) Startup(ctx context.Context) {
 	b.ctx = ctx
 }
 
-func (b *APIBinding) ExecuteRequest(method, url, payload string) (*domain.APIRequest, error) {
-	return b.uc.ExecuteAndSaveRequest(b.ctx, method, url, payload)
+func (b *APIBinding) ExecuteRequest(method, url, payload, headersJSON string) (*domain.APIRequest, error) {
+	var headers map[string]string
+	if headersJSON != "" {
+		_ = json.Unmarshal([]byte(headersJSON), &headers)
+	}
+	return b.uc.ExecuteAndSaveRequest(b.ctx, method, url, payload, headers)
 }

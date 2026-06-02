@@ -1,9 +1,53 @@
 export namespace domain {
 	
+	export class AIHistory {
+	    id: number;
+	    doc_input: string;
+	    method: string;
+	    url: string;
+	    headers: string;
+	    payload: string;
+	    // Go type: time
+	    created_at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIHistory(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.doc_input = source["doc_input"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.headers = source["headers"];
+	        this.payload = source["payload"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class APIRequest {
 	    id: number;
 	    url: string;
 	    method: string;
+	    headers: string;
 	    payload: string;
 	    response: string;
 	    status: number;
@@ -19,6 +63,7 @@ export namespace domain {
 	        this.id = source["id"];
 	        this.url = source["url"];
 	        this.method = source["method"];
+	        this.headers = source["headers"];
 	        this.payload = source["payload"];
 	        this.response = source["response"];
 	        this.status = source["status"];
@@ -432,6 +477,29 @@ export namespace domain {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace ports {
+	
+	export class AIGenerateResponse {
+	    method: string;
+	    url: string;
+	    headers: Record<string, string>;
+	    body: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AIGenerateResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.headers = source["headers"];
+	        this.body = source["body"];
+	    }
 	}
 
 }
