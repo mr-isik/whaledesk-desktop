@@ -10,6 +10,10 @@ export function Connect(arg1) {
   return window['go']['bindings']['DbManagerBinding']['Connect'](arg1);
 }
 
+export function DeleteRows(arg1) {
+  return window['go']['bindings']['DbManagerBinding']['DeleteRows'](arg1);
+}
+
 export function DescribeTable(arg1, arg2) {
   return window['go']['bindings']['DbManagerBinding']['DescribeTable'](arg1, arg2);
 }
@@ -24,6 +28,14 @@ export function ExecuteQuery(arg1) {
 
 export function GetActiveConnection() {
   return window['go']['bindings']['DbManagerBinding']['GetActiveConnection']();
+}
+
+export function GetTableData(arg1) {
+  return window['go']['bindings']['DbManagerBinding']['GetTableData'](arg1);
+}
+
+export function InsertRow(arg1) {
+  return window['go']['bindings']['DbManagerBinding']['InsertRow'](arg1);
 }
 
 export function IsConnected() {
@@ -52,4 +64,8 @@ export function RemoveConnection(arg1) {
 
 export function Startup(arg1) {
   return window['go']['bindings']['DbManagerBinding']['Startup'](arg1);
+}
+
+export function UpdateRow(arg1, arg2) {
+  return window['go']['bindings']['DbManagerBinding']['UpdateRow'](arg1, arg2);
 }

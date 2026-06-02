@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -228,7 +229,12 @@ func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*doma
 		if err != nil {
 			return nil, err
 		}
-		resultRows = append(resultRows, vals)
+		
+		safeRow := make([]interface{}, len(vals))
+		for i, v := range vals {
+			safeRow[i] = toJSONSafe(v)
+		}
+		resultRows = append(resultRows, safeRow)
 	}
 	if err := rows.Err(); err != nil {
 		return &domain.QueryResult{ErrorMessage: err.Error()}, nil
@@ -240,6 +246,244 @@ func (p *PostgresManager) ExecuteQuery(ctx context.Context, query string) (*doma
 		Rows:         resultRows,
 		RowsAffected: tag.RowsAffected(),
 	}, nil
+}
+
+func toJSONSafe(v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+	switch val := v.(type) {
+	case string:
+		return val
+	case int, int8, int16, int32, int64:
+		return val
+	case uint, uint8, uint16, uint32, uint64:
+		return val
+	case float32, float64:
+		return val
+	case bool:
+		return val
+	case time.Time:
+		return val.Format(time.RFC3339)
+	case []byte:
+		return fmt.Sprintf("%x", val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+func (p *PostgresManager) GetTableData(ctx context.Context, req domain.TableDataRequest) (*domain.TableDataResult, error) {
+	if err := p.checkConnection(); err != nil {
+		return nil, err
+	}
+
+	// 1. Get columns
+	columns, err := p.DescribeTable(ctx, req.Schema, req.Table)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table metadata: %w", err)
+	}
+
+	// 2. Count total rows
+	var totalRows int64
+	countQuery := fmt.Sprintf("SELECT count(*) FROM %s.%s", pgx.Identifier{req.Schema}.Sanitize(), pgx.Identifier{req.Table}.Sanitize())
+	if err := p.pool.QueryRow(ctx, countQuery).Scan(&totalRows); err != nil {
+		return nil, fmt.Errorf("failed to count rows: %w", err)
+	}
+
+	// 3. Build data query
+	offset := (req.Page - 1) * req.PageSize
+	query := fmt.Sprintf("SELECT * FROM %s.%s", pgx.Identifier{req.Schema}.Sanitize(), pgx.Identifier{req.Table}.Sanitize())
+
+	// Sorting
+	if req.SortCol != "" {
+		// Validate sort col against described columns to prevent injection
+		validCol := false
+		for _, col := range columns {
+			if col.Name == req.SortCol {
+				validCol = true
+				break
+			}
+		}
+		if validCol {
+			dir := "ASC"
+			if strings.ToLower(req.SortDir) == "desc" {
+				dir = "DESC"
+			}
+			query += fmt.Sprintf(" ORDER BY %s %s", pgx.Identifier{req.SortCol}.Sanitize(), dir)
+		}
+	} else {
+		// Default sort by first PK if available
+		for _, col := range columns {
+			if col.IsPrimaryKey {
+				query += fmt.Sprintf(" ORDER BY %s ASC", pgx.Identifier{col.Name}.Sanitize())
+				break
+			}
+		}
+	}
+
+	// Pagination
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", req.PageSize, offset)
+
+	rows, err := p.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query data: %w", err)
+	}
+	defer rows.Close()
+
+	var resultRows [][]interface{}
+	for rows.Next() {
+		vals, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+		
+		safeRow := make([]interface{}, len(vals))
+		for i, v := range vals {
+			safeRow[i] = toJSONSafe(v)
+		}
+		resultRows = append(resultRows, safeRow)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	totalPages := int(totalRows) / req.PageSize
+	if int(totalRows)%req.PageSize > 0 {
+		totalPages++
+	}
+
+	return &domain.TableDataResult{
+		Columns:    columns,
+		Rows:       resultRows,
+		TotalRows:  totalRows,
+		Page:       req.Page,
+		PageSize:   req.PageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (p *PostgresManager) InsertRow(ctx context.Context, mutation domain.RowMutation) error {
+	if err := p.checkConnection(); err != nil {
+		return err
+	}
+
+	if len(mutation.Data) == 0 {
+		return fmt.Errorf("no data provided for insert")
+	}
+
+	var cols []string
+	var placeholders []string
+	var args []interface{}
+	
+	i := 1
+	for colName, val := range mutation.Data {
+		cols = append(cols, pgx.Identifier{colName}.Sanitize())
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+		args = append(args, val)
+		i++
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s.%s (%s) VALUES (%s)", 
+		pgx.Identifier{mutation.Schema}.Sanitize(),
+		pgx.Identifier{mutation.Table}.Sanitize(),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "),
+	)
+
+	_, err := p.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("insert failed: %w", err)
+	}
+	return nil
+}
+
+func (p *PostgresManager) UpdateRow(ctx context.Context, mutation domain.RowMutation, primaryKey map[string]interface{}) error {
+	if err := p.checkConnection(); err != nil {
+		return err
+	}
+
+	if len(mutation.Data) == 0 {
+		return fmt.Errorf("no data provided for update")
+	}
+	if len(primaryKey) == 0 {
+		return fmt.Errorf("primary key is required for update")
+	}
+
+	var setCols []string
+	var args []interface{}
+	
+	i := 1
+	for colName, val := range mutation.Data {
+		setCols = append(setCols, fmt.Sprintf("%s = $%d", pgx.Identifier{colName}.Sanitize(), i))
+		args = append(args, val)
+		i++
+	}
+
+	var whereCols []string
+	for colName, val := range primaryKey {
+		whereCols = append(whereCols, fmt.Sprintf("%s = $%d", pgx.Identifier{colName}.Sanitize(), i))
+		args = append(args, val)
+		i++
+	}
+
+	query := fmt.Sprintf("UPDATE %s.%s SET %s WHERE %s", 
+		pgx.Identifier{mutation.Schema}.Sanitize(),
+		pgx.Identifier{mutation.Table}.Sanitize(),
+		strings.Join(setCols, ", "),
+		strings.Join(whereCols, " AND "),
+	)
+
+	res, err := p.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("no rows were updated (row not found)")
+	}
+	return nil
+}
+
+func (p *PostgresManager) DeleteRows(ctx context.Context, req domain.RowDeleteRequest) (int64, error) {
+	if err := p.checkConnection(); err != nil {
+		return 0, err
+	}
+
+	if len(req.PrimaryKeys) == 0 {
+		return 0, fmt.Errorf("no rows specified for deletion")
+	}
+
+	var conditions []string
+	var args []interface{}
+	paramIdx := 1
+
+	for _, pkMap := range req.PrimaryKeys {
+		var andConds []string
+		for colName, val := range pkMap {
+			andConds = append(andConds, fmt.Sprintf("%s = $%d", pgx.Identifier{colName}.Sanitize(), paramIdx))
+			args = append(args, val)
+			paramIdx++
+		}
+		if len(andConds) > 0 {
+			conditions = append(conditions, fmt.Sprintf("(%s)", strings.Join(andConds, " AND ")))
+		}
+	}
+
+	if len(conditions) == 0 {
+		return 0, fmt.Errorf("invalid primary keys provided")
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s.%s WHERE %s", 
+		pgx.Identifier{req.Schema}.Sanitize(),
+		pgx.Identifier{req.Table}.Sanitize(),
+		strings.Join(conditions, " OR "),
+	)
+
+	res, err := p.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("delete failed: %w", err)
+	}
+	
+	return res.RowsAffected(), nil
 }
 
 func (p *PostgresManager) checkConnection() error {

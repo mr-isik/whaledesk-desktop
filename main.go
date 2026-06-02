@@ -32,15 +32,15 @@ func main() {
 
 	httpClient := httpclient.NewHTTPClient()
 
-	dockerUC := usecase.NewDockerUsecase(dockerClient)
-	dbUC := usecase.NewDatabaseUsecase(dbClient)
-	apiUC := usecase.NewAPIUsecase(httpClient, dbClient)
-	dbManagerUC := usecase.NewDbManagerUsecase()
-
 	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {
 		log.Fatalf("Failed to initialize crypto service: %v", err)
 	}
+
+	dockerUC := usecase.NewDockerUsecase(dockerClient)
+	dbUC := usecase.NewDatabaseUsecase(dbClient)
+	apiUC := usecase.NewAPIUsecase(httpClient, dbClient)
+	dbManagerUC := usecase.NewDbManagerUsecase(dbClient, cryptoService)
 	envUC := usecase.NewEnvManagerUsecase(dbClient, cryptoService)
 
 	dockerBinding := bindings.NewDockerBinding(dockerUC)

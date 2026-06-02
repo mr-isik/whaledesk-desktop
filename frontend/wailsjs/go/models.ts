@@ -339,6 +339,100 @@ export namespace domain {
 	        this.error_message = source["error_message"];
 	    }
 	}
+	export class RowDeleteRequest {
+	    schema: string;
+	    table: string;
+	    primary_keys: any[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RowDeleteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.primary_keys = source["primary_keys"];
+	    }
+	}
+	export class RowMutation {
+	    schema: string;
+	    table: string;
+	    data: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new RowMutation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.data = source["data"];
+	    }
+	}
+	export class TableDataRequest {
+	    schema: string;
+	    table: string;
+	    page: number;
+	    page_size: number;
+	    sort_col: string;
+	    sort_dir: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableDataRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	        this.sort_col = source["sort_col"];
+	        this.sort_dir = source["sort_dir"];
+	    }
+	}
+	export class TableDataResult {
+	    columns: DbColumn[];
+	    rows: any[][];
+	    total_rows: number;
+	    page: number;
+	    page_size: number;
+	    total_pages: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableDataResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.columns = this.convertValues(source["columns"], DbColumn);
+	        this.rows = source["rows"];
+	        this.total_rows = source["total_rows"];
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	        this.total_pages = source["total_pages"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 

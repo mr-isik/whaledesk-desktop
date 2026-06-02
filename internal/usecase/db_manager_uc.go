@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"dockit-desktop/internal/domain"
+	"dockit-desktop/internal/infrastructure/crypto"
 	"dockit-desktop/internal/infrastructure/dbmanager"
 	"dockit-desktop/internal/ports"
 	"fmt"
@@ -12,33 +13,61 @@ import (
 )
 
 type DbManagerUsecase struct {
-	mu          sync.Mutex
-	activePort  ports.DbManagerPort
-	activeConn  *domain.DbConnection
-	connections []domain.DbConnection
+	mu         sync.Mutex
+	activePort ports.DbManagerPort
+	activeConn *domain.DbConnection
+	store      ports.DbConnectionStorePort
+	crypto     *crypto.CryptoService
 }
 
-func NewDbManagerUsecase() *DbManagerUsecase {
+func NewDbManagerUsecase(store ports.DbConnectionStorePort, cs *crypto.CryptoService) *DbManagerUsecase {
 	return &DbManagerUsecase{
-		connections: []domain.DbConnection{},
+		store:  store,
+		crypto: cs,
 	}
 }
 
-func (uc *DbManagerUsecase) AddConnection(conn domain.DbConnection) domain.DbConnection {
+func (uc *DbManagerUsecase) AddConnection(ctx context.Context, conn domain.DbConnection) (domain.DbConnection, error) {
 	uc.mu.Lock()
 	defer uc.mu.Unlock()
 
 	if conn.ID == "" {
 		conn.ID = uuid.NewString()
 	}
-	uc.connections = append(uc.connections, conn)
-	return conn
+	
+	encrypted, err := uc.crypto.Encrypt(conn.Password)
+	if err != nil {
+		return conn, fmt.Errorf("failed to encrypt password: %w", err)
+	}
+
+	if err := uc.store.SaveConnection(ctx, &conn, encrypted); err != nil {
+		return conn, fmt.Errorf("failed to save connection: %w", err)
+	}
+
+	return conn, nil
 }
 
-func (uc *DbManagerUsecase) ListConnections() []domain.DbConnection {
+func (uc *DbManagerUsecase) ListConnections(ctx context.Context) ([]domain.DbConnection, error) {
 	uc.mu.Lock()
 	defer uc.mu.Unlock()
-	return uc.connections
+	
+	conns, err := uc.store.ListConnections(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	for i := range conns {
+		if conns[i].Password != "" {
+			plain, decErr := uc.crypto.Decrypt(conns[i].Password)
+			if decErr != nil {
+				conns[i].Password = "" // Error handling, don't expose
+			} else {
+				conns[i].Password = plain
+			}
+		}
+	}
+	
+	return conns, nil
 }
 
 func (uc *DbManagerUsecase) RemoveConnection(ctx context.Context, id string) error {
@@ -53,29 +82,34 @@ func (uc *DbManagerUsecase) RemoveConnection(ctx context.Context, id string) err
 		uc.activeConn = nil
 	}
 
-	newConns := uc.connections[:0]
-	for _, c := range uc.connections {
-		if c.ID != id {
-			newConns = append(newConns, c)
-		}
-	}
-	uc.connections = newConns
-	return nil
+	return uc.store.DeleteConnection(ctx, id)
 }
 
 func (uc *DbManagerUsecase) Connect(ctx context.Context, id string) error {
 	uc.mu.Lock()
 	defer uc.mu.Unlock()
 
+	conns, err := uc.store.ListConnections(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load connections: %w", err)
+	}
+
 	var found *domain.DbConnection
-	for i := range uc.connections {
-		if uc.connections[i].ID == id {
-			found = &uc.connections[i]
+	for i := range conns {
+		if conns[i].ID == id {
+			found = &conns[i]
 			break
 		}
 	}
 	if found == nil {
 		return fmt.Errorf("connection profile not found: %s", id)
+	}
+	
+	if found.Password != "" {
+		plain, decErr := uc.crypto.Decrypt(found.Password)
+		if decErr == nil {
+			found.Password = plain
+		}
 	}
 
 	if uc.activePort != nil {
@@ -172,4 +206,52 @@ func (uc *DbManagerUsecase) ExecuteQuery(ctx context.Context, query string) (*do
 		return nil, fmt.Errorf("no active database connection")
 	}
 	return p.ExecuteQuery(ctx, query)
+}
+
+func (uc *DbManagerUsecase) GetTableData(ctx context.Context, req domain.TableDataRequest) (*domain.TableDataResult, error) {
+	uc.mu.Lock()
+	p := uc.activePort
+	uc.mu.Unlock()
+	if p == nil {
+		return nil, fmt.Errorf("no active database connection")
+	}
+
+	if req.PageSize <= 0 {
+		req.PageSize = 50
+	}
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+
+	return p.GetTableData(ctx, req)
+}
+
+func (uc *DbManagerUsecase) InsertRow(ctx context.Context, mutation domain.RowMutation) error {
+	uc.mu.Lock()
+	p := uc.activePort
+	uc.mu.Unlock()
+	if p == nil {
+		return fmt.Errorf("no active database connection")
+	}
+	return p.InsertRow(ctx, mutation)
+}
+
+func (uc *DbManagerUsecase) UpdateRow(ctx context.Context, mutation domain.RowMutation, primaryKey map[string]interface{}) error {
+	uc.mu.Lock()
+	p := uc.activePort
+	uc.mu.Unlock()
+	if p == nil {
+		return fmt.Errorf("no active database connection")
+	}
+	return p.UpdateRow(ctx, mutation, primaryKey)
+}
+
+func (uc *DbManagerUsecase) DeleteRows(ctx context.Context, req domain.RowDeleteRequest) (int64, error) {
+	uc.mu.Lock()
+	p := uc.activePort
+	uc.mu.Unlock()
+	if p == nil {
+		return 0, fmt.Errorf("no active database connection")
+	}
+	return p.DeleteRows(ctx, req)
 }

@@ -19,12 +19,12 @@ func (b *DbManagerBinding) Startup(ctx context.Context) {
 	b.ctx = ctx
 }
 
-func (b *DbManagerBinding) AddConnection(conn domain.DbConnection) domain.DbConnection {
-	return b.uc.AddConnection(conn)
+func (b *DbManagerBinding) AddConnection(conn domain.DbConnection) (domain.DbConnection, error) {
+	return b.uc.AddConnection(b.ctx, conn)
 }
 
-func (b *DbManagerBinding) ListConnections() []domain.DbConnection {
-	return b.uc.ListConnections()
+func (b *DbManagerBinding) ListConnections() ([]domain.DbConnection, error) {
+	return b.uc.ListConnections(b.ctx)
 }
 
 func (b *DbManagerBinding) RemoveConnection(id string) error {
@@ -65,4 +65,20 @@ func (b *DbManagerBinding) DescribeTable(schema, table string) ([]domain.DbColum
 
 func (b *DbManagerBinding) ExecuteQuery(query string) (*domain.QueryResult, error) {
 	return b.uc.ExecuteQuery(b.ctx, query)
+}
+
+func (b *DbManagerBinding) GetTableData(req domain.TableDataRequest) (*domain.TableDataResult, error) {
+	return b.uc.GetTableData(b.ctx, req)
+}
+
+func (b *DbManagerBinding) InsertRow(mutation domain.RowMutation) error {
+	return b.uc.InsertRow(b.ctx, mutation)
+}
+
+func (b *DbManagerBinding) UpdateRow(mutation domain.RowMutation, primaryKey map[string]interface{}) error {
+	return b.uc.UpdateRow(b.ctx, mutation, primaryKey)
+}
+
+func (b *DbManagerBinding) DeleteRows(req domain.RowDeleteRequest) (int64, error) {
+	return b.uc.DeleteRows(b.ctx, req)
 }

@@ -49,3 +49,37 @@ type QueryResult struct {
 	RowsAffected int64           `json:"rows_affected"`
 	ErrorMessage string          `json:"error_message,omitempty"`
 }
+
+// Paginated table data request
+type TableDataRequest struct {
+	Schema   string `json:"schema"`
+	Table    string `json:"table"`
+	Page     int    `json:"page"`      // 1-indexed
+	PageSize int    `json:"page_size"` // default 50
+	SortCol  string `json:"sort_col"`
+	SortDir  string `json:"sort_dir"` // "asc" | "desc"
+}
+
+// Paginated table data result
+type TableDataResult struct {
+	Columns    []DbColumn        `json:"columns"`
+	Rows       [][]interface{}   `json:"rows"`
+	TotalRows  int64             `json:"total_rows"`
+	Page       int               `json:"page"`
+	PageSize   int               `json:"page_size"`
+	TotalPages int               `json:"total_pages"`
+}
+
+// Row mutation for insert/update
+type RowMutation struct {
+	Schema string                 `json:"schema"`
+	Table  string                 `json:"table"`
+	Data   map[string]interface{} `json:"data"` // column_name -> value
+}
+
+// Row delete request (supports bulk)
+type RowDeleteRequest struct {
+	Schema      string                   `json:"schema"`
+	Table       string                   `json:"table"`
+	PrimaryKeys []map[string]interface{} `json:"primary_keys"` // each item is a map of PK col -> value
+}

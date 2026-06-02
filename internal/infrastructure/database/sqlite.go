@@ -65,6 +65,19 @@ CREATE TABLE IF NOT EXISTS env_variables (
     description TEXT NOT NULL DEFAULT '',
     UNIQUE(env_id, key)
 );
+
+CREATE TABLE IF NOT EXISTS db_connections (
+    id        TEXT PRIMARY KEY,
+    name      TEXT NOT NULL,
+    type      TEXT NOT NULL DEFAULT 'postgres',
+    host      TEXT NOT NULL,
+    port      INTEGER NOT NULL DEFAULT 5432,
+    user      TEXT NOT NULL,
+    password_enc TEXT NOT NULL,
+    database  TEXT NOT NULL DEFAULT '',
+    ssl_mode  TEXT NOT NULL DEFAULT 'disable',
+    created_at DATETIME NOT NULL
+);
 `
 	_, err := s.db.Exec(schema)
 	return err
@@ -249,4 +262,45 @@ func (s *SQLiteDB) GetVariables(ctx context.Context, envID string) ([]domain.Env
 		result = append(result, v)
 	}
 	return result, rows.Err()
+}
+
+func (s *SQLiteDB) SaveConnection(ctx context.Context, conn *domain.DbConnection, encryptedPassword string) error {
+	const q = `INSERT INTO db_connections (id, name, type, host, port, user, password_enc, database, ssl_mode, created_at)
+			   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := s.db.ExecContext(ctx, q,
+		conn.ID, conn.Name, conn.Type, conn.Host, conn.Port, conn.User, encryptedPassword, conn.Database, conn.SSLMode, time.Now().UTC())
+	return err
+}
+
+func (s *SQLiteDB) ListConnections(ctx context.Context) ([]domain.DbConnection, error) {
+	const q = `SELECT id, name, type, host, port, user, password_enc, database, ssl_mode FROM db_connections ORDER BY created_at ASC`
+	rows, err := s.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []domain.DbConnection
+	for rows.Next() {
+		var c domain.DbConnection
+		if err := rows.Scan(
+			&c.ID, &c.Name, &c.Type, &c.Host, &c.Port, &c.User, &c.Password, &c.Database, &c.SSLMode,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, c)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteDB) DeleteConnection(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM db_connections WHERE id = ?", id)
+	return err
+}
+
+func (s *SQLiteDB) UpdateConnection(ctx context.Context, conn *domain.DbConnection, encryptedPassword string) error {
+	const q = `UPDATE db_connections SET name = ?, type = ?, host = ?, port = ?, user = ?, password_enc = ?, database = ?, ssl_mode = ? WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, q,
+		conn.Name, conn.Type, conn.Host, conn.Port, conn.User, encryptedPassword, conn.Database, conn.SSLMode, conn.ID)
+	return err
 }

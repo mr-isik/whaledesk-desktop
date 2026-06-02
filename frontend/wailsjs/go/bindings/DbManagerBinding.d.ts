@@ -7,6 +7,8 @@ export function AddConnection(arg1:domain.DbConnection):Promise<domain.DbConnect
 
 export function Connect(arg1:string):Promise<void>;
 
+export function DeleteRows(arg1:domain.RowDeleteRequest):Promise<number>;
+
 export function DescribeTable(arg1:string,arg2:string):Promise<Array<domain.DbColumn>>;
 
 export function Disconnect():Promise<void>;
@@ -14,6 +16,10 @@ export function Disconnect():Promise<void>;
 export function ExecuteQuery(arg1:string):Promise<domain.QueryResult>;
 
 export function GetActiveConnection():Promise<domain.DbConnection>;
+
+export function GetTableData(arg1:domain.TableDataRequest):Promise<domain.TableDataResult>;
+
+export function InsertRow(arg1:domain.RowMutation):Promise<void>;
 
 export function IsConnected():Promise<boolean>;
 
@@ -28,3 +34,5 @@ export function ListTables(arg1:string):Promise<Array<domain.DbTable>>;
 export function RemoveConnection(arg1:string):Promise<void>;
 
 export function Startup(arg1:context.Context):Promise<void>;
+
+export function UpdateRow(arg1:domain.RowMutation,arg2:Record<string, any>):Promise<void>;

@@ -21,4 +21,10 @@ type DbManagerPort interface {
 	DescribeTable(ctx context.Context, schema, table string) ([]domain.DbColumn, error)
 
 	ExecuteQuery(ctx context.Context, query string) (*domain.QueryResult, error)
+
+	// GUI Data Operations
+	GetTableData(ctx context.Context, req domain.TableDataRequest) (*domain.TableDataResult, error)
+	InsertRow(ctx context.Context, mutation domain.RowMutation) error
+	UpdateRow(ctx context.Context, mutation domain.RowMutation, primaryKey map[string]interface{}) error
+	DeleteRows(ctx context.Context, req domain.RowDeleteRequest) (int64, error)
 }
