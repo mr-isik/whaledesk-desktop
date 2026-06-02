@@ -1,27 +1,64 @@
+export namespace bindings {
+	
+	export class CollectionPageResult {
+	    items: domain.AICollectionItem[];
+	    total: number;
+	    page: number;
+	    page_size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CollectionPageResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], domain.AICollectionItem);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace domain {
 	
-	export class AIHistory {
+	export class AICollection {
 	    id: number;
+	    name: string;
 	    doc_input: string;
-	    method: string;
-	    url: string;
-	    headers: string;
-	    payload: string;
+	    item_count: number;
 	    // Go type: time
 	    created_at: any;
 	
 	    static createFrom(source: any = {}) {
-	        return new AIHistory(source);
+	        return new AICollection(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.name = source["name"];
 	        this.doc_input = source["doc_input"];
-	        this.method = source["method"];
-	        this.url = source["url"];
-	        this.headers = source["headers"];
-	        this.payload = source["payload"];
+	        this.item_count = source["item_count"];
 	        this.created_at = this.convertValues(source["created_at"], null);
 	    }
 	
@@ -42,6 +79,34 @@ export namespace domain {
 		    }
 		    return a;
 		}
+	}
+	export class AICollectionItem {
+	    id: number;
+	    collection_id: number;
+	    name: string;
+	    description: string;
+	    method: string;
+	    url: string;
+	    headers: string;
+	    payload: string;
+	    sort_order: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AICollectionItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.collection_id = source["collection_id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.headers = source["headers"];
+	        this.payload = source["payload"];
+	        this.sort_order = source["sort_order"];
+	    }
 	}
 	export class APIRequest {
 	    id: number;
@@ -484,6 +549,8 @@ export namespace domain {
 export namespace ports {
 	
 	export class AIGenerateResponse {
+	    name: string;
+	    description: string;
 	    method: string;
 	    url: string;
 	    headers: Record<string, string>;
@@ -495,6 +562,8 @@ export namespace ports {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
 	        this.method = source["method"];
 	        this.url = source["url"];
 	        this.headers = source["headers"];

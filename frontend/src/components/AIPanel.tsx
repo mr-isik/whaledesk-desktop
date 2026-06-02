@@ -1,53 +1,80 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, History, CheckCircle, RefreshCcw, AlertCircle, Upload } from 'lucide-react';
-import { GenerateRequest, GetHistory } from '../../wailsjs/go/bindings/AIBinding';
-import { domain, ports } from '../../wailsjs/go/models';
+import { Sparkles, History, CheckCircle, RefreshCcw, AlertCircle, Upload, Trash2, Folder, ChevronLeft, ChevronRight, List } from 'lucide-react';
+import { GenerateCollection, ListCollections, DeleteCollection, GetCollectionItemPage } from '../../wailsjs/go/bindings/AIBinding';
+import { domain, bindings } from '../../wailsjs/go/models';
 
 interface AIPanelProps {
   onApply: (method: string, url: string, headers: Record<string, string>, payload: string) => void;
 }
 
 export default function AIPanel({ onApply }: AIPanelProps) {
-  const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
+  const [activeTab, setActiveTab] = useState<'generate' | 'collections' | 'browse'>('generate');
   
   // Generate State
   const [docInput, setDocInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<ports.AIGenerateResponse | null>(null);
-
-  // History State
-  const [history, setHistory] = useState<domain.AIHistory[]>([]);
+  const [successMsg, setSuccessMsg] = useState('');
   
+  // Collections State
+  const [collections, setCollections] = useState<domain.AICollection[]>([]);
+  
+  // Browse State
+  const [selectedCollection, setSelectedCollection] = useState<domain.AICollection | null>(null);
+  const [pageData, setPageData] = useState<bindings.CollectionPageResult | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 1; // 1 endpoint per page for Postman-like browse feel, or 1 for simplicity of Apply
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (activeTab === 'history') {
-      loadHistory();
+    if (activeTab === 'collections') {
+      loadCollections();
     }
   }, [activeTab]);
 
-  const loadHistory = async () => {
+  useEffect(() => {
+    if (activeTab === 'browse' && selectedCollection) {
+      loadCollectionPage(selectedCollection.id, currentPage);
+    }
+  }, [activeTab, selectedCollection, currentPage]);
+
+  const loadCollections = async () => {
     try {
-      const hist = await GetHistory();
-      setHistory(hist || []);
+      const cols = await ListCollections();
+      setCollections(cols || []);
     } catch (e: any) {
-      console.error("Failed to load AI history:", e);
+      console.error("Failed to load collections:", e);
+    }
+  };
+
+  const loadCollectionPage = async (collectionId: number, page: number) => {
+    try {
+      const data = await GetCollectionItemPage(collectionId, page, pageSize);
+      setPageData(data);
+    } catch (e: any) {
+      console.error("Failed to load collection items:", e);
     }
   };
 
   const handleGenerate = async () => {
     if (!docInput.trim()) return;
     
+    const collectionName = window.prompt("Enter a name for this API Collection:");
+    if (!collectionName || !collectionName.trim()) return;
+
     setLoading(true);
     setError('');
-    setResult(null);
+    setSuccessMsg('');
 
     try {
-      const res = await GenerateRequest(docInput);
-      setResult(res);
-      // Background load history to keep it fresh
-      loadHistory();
+      const col = await GenerateCollection(collectionName, docInput);
+      setSuccessMsg(`Successfully generated ${col.item_count} endpoints!`);
+      // Optionally switch to collections tab
+      setTimeout(() => {
+        setSuccessMsg('');
+        setActiveTab('collections');
+      }, 2000);
     } catch (err: any) {
       setError(err.toString());
     } finally {
@@ -55,13 +82,21 @@ export default function AIPanel({ onApply }: AIPanelProps) {
     }
   };
 
+  const handleDeleteCollection = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this collection?")) return;
+    try {
+      await DeleteCollection(id);
+      loadCollections();
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+    }
+  };
+
   const handleApply = (method: string, url: string, headers: any, payload: string) => {
-    // Determine headers format (map or json string depending on where it comes from)
     let parsedHeaders = headers;
     if (typeof headers === 'string' && headers.trim() !== '') {
         try { parsedHeaders = JSON.parse(headers); } catch (e) {}
     }
-    
     onApply(method, url, parsedHeaders || {}, payload || '');
   };
 
@@ -77,7 +112,6 @@ export default function AIPanel({ onApply }: AIPanelProps) {
       }
     };
     reader.readAsText(file);
-    // Reset input
     e.target.value = '';
   };
 
@@ -98,12 +132,21 @@ export default function AIPanel({ onApply }: AIPanelProps) {
           <Sparkles size={12} style={{ marginRight: '4px' }} /> Generate
         </button>
         <button 
-          className={`btn-outline ${activeTab === 'history' ? 'active' : ''}`}
-          style={{ flex: 1, padding: '6px', fontSize: '11px', height: '28px', background: activeTab === 'history' ? 'var(--bg-tertiary)' : 'transparent' }}
-          onClick={() => setActiveTab('history')}
+          className={`btn-outline ${activeTab === 'collections' ? 'active' : ''}`}
+          style={{ flex: 1, padding: '6px', fontSize: '11px', height: '28px', background: activeTab === 'collections' ? 'var(--bg-tertiary)' : 'transparent' }}
+          onClick={() => setActiveTab('collections')}
         >
-          <History size={12} style={{ marginRight: '4px' }} /> History
+          <Folder size={12} style={{ marginRight: '4px' }} /> Collections
         </button>
+        {selectedCollection && (
+          <button 
+            className={`btn-outline ${activeTab === 'browse' ? 'active' : ''}`}
+            style={{ flex: 1, padding: '6px', fontSize: '11px', height: '28px', background: activeTab === 'browse' ? 'var(--bg-tertiary)' : 'transparent' }}
+            onClick={() => setActiveTab('browse')}
+          >
+            <List size={12} style={{ marginRight: '4px' }} /> Browse
+          </button>
+        )}
       </div>
 
       {activeTab === 'generate' && (
@@ -134,7 +177,7 @@ export default function AIPanel({ onApply }: AIPanelProps) {
             onChange={(e) => setDocInput(e.target.value)}
             placeholder="paths:\n  /users:\n    post:\n      summary: Create user..."
             style={{ 
-              height: '120px', 
+              height: '180px', 
               fontSize: '11px', 
               fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
               resize: 'vertical'
@@ -148,7 +191,7 @@ export default function AIPanel({ onApply }: AIPanelProps) {
             style={{ width: '100%', height: '32px', fontSize: '12px' }}
           >
             {loading ? <RefreshCcw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            {loading ? 'Generating...' : 'Generate Request'}
+            {loading ? 'Generating All Endpoints...' : 'Generate Requests'}
           </button>
 
           {error && (
@@ -158,55 +201,122 @@ export default function AIPanel({ onApply }: AIPanelProps) {
             </div>
           )}
 
-          {result && (
-            <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className={`badge success`} style={{ fontSize: '10px' }}>{result.method}</span>
-                <button 
-                  className="btn-primary" 
-                  onClick={() => handleApply(result.method, result.url, result.headers, result.body)}
-                  style={{ padding: '4px 8px', fontSize: '10px', height: '24px' }}
-                >
-                  <CheckCircle size={12} style={{ marginRight: '4px' }} /> Apply
-                </button>
-              </div>
-              <div style={{ fontSize: '11px', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", wordBreak: 'break-all', color: 'var(--accent-primary)' }}>
-                {result.url}
-              </div>
+          {successMsg && (
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', padding: '8px', borderRadius: 'var(--radius-sm)', fontSize: '11px', display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
+              <CheckCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span style={{ wordBreak: 'break-word' }}>{successMsg}</span>
             </div>
           )}
         </div>
       )}
 
-      {activeTab === 'history' && (
+      {activeTab === 'collections' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-          {history.length === 0 ? (
+          {collections.length === 0 ? (
             <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '20px' }}>
-              No history found.
+              No collections found.
             </div>
           ) : (
-            history.map(item => (
-              <div key={item.id} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            collections.map(col => (
+              <div 
+                key={col.id} 
+                style={{ 
+                  background: 'var(--bg-tertiary)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: 'var(--radius-sm)', 
+                  padding: '10px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '8px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  setSelectedCollection(col);
+                  setCurrentPage(1);
+                  setActiveTab('browse');
+                }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span className="badge" style={{ fontSize: '9px', background: 'var(--bg-secondary)' }}>{item.method}</span>
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
-                      {new Date(item.created_at as string).toLocaleDateString()}
-                    </span>
+                  <div style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Folder size={12} color="var(--accent-primary)" />
+                    {col.name}
                   </div>
                   <button 
-                    className="btn-outline" 
-                    onClick={() => handleApply(item.method, item.url, item.headers, item.payload)}
-                    style={{ padding: '2px 6px', fontSize: '9px', height: '20px' }}
+                    className="btn-icon" 
+                    onClick={(e) => { e.stopPropagation(); handleDeleteCollection(col.id); }}
+                    style={{ color: 'var(--danger)', padding: '2px' }}
+                    title="Delete Collection"
                   >
-                    Apply
+                    <Trash2 size={12} />
                   </button>
                 </div>
-                <div style={{ fontSize: '10px', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {item.url}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)' }}>
+                  <span>{col.item_count} endpoints</span>
+                  <span>{new Date(col.created_at as string).toLocaleDateString()}</span>
                 </div>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'browse' && pageData && selectedCollection && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+              {selectedCollection.name}
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <button 
+                className="btn-icon" 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span>{currentPage} / {Math.ceil(pageData.total / pageSize) || 1}</span>
+              <button 
+                className="btn-icon"
+                disabled={currentPage >= Math.ceil(pageData.total / pageSize)}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+
+          {pageData.items && pageData.items.length > 0 ? (
+            pageData.items.map(item => (
+              <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className={`badge success`} style={{ fontSize: '10px' }}>{item.method}</span>
+                  <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>{item.name}</span>
+                </div>
+                
+                {item.description && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    {item.description}
+                  </div>
+                )}
+                
+                <div style={{ fontSize: '11px', fontFamily: "var(--font-mono, 'Geist Mono', monospace)", wordBreak: 'break-all', color: 'var(--accent-primary)', background: 'var(--bg-tertiary)', padding: '6px', borderRadius: '4px' }}>
+                  {item.url}
+                </div>
+
+                <button 
+                  className="btn-primary" 
+                  onClick={() => handleApply(item.method, item.url, item.headers, item.payload)}
+                  style={{ width: '100%', height: '28px', fontSize: '11px' }}
+                >
+                  <CheckCircle size={12} style={{ marginRight: '6px' }} /> Apply to API Tester
+                </button>
+              </div>
+            ))
+          ) : (
+            <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '20px' }}>
+              No endpoints found in this collection.
+            </div>
           )}
         </div>
       )}

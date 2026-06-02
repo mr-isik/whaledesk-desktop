@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS db_connections (
 	// Migrate existing api_requests table to add headers column if it doesn't exist
 	_, _ = s.db.Exec(`ALTER TABLE api_requests ADD COLUMN headers TEXT NOT NULL DEFAULT '{}'`)
 
-	// Settings and AI History tables
+	// Settings and AI Collections tables
 	const newTablesSchema = `
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -104,6 +104,29 @@ CREATE TABLE IF NOT EXISTS ai_request_history (
     payload     TEXT,
     created_at  DATETIME NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ai_collections (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    doc_input   TEXT,
+    item_count  INTEGER NOT NULL DEFAULT 0,
+    created_at  DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ai_collection_items (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id  INTEGER NOT NULL REFERENCES ai_collections(id) ON DELETE CASCADE,
+    name           TEXT NOT NULL,
+    description    TEXT NOT NULL DEFAULT '',
+    method         TEXT NOT NULL,
+    url            TEXT NOT NULL,
+    headers        TEXT NOT NULL DEFAULT '{}',
+    payload        TEXT NOT NULL DEFAULT '',
+    sort_order     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_collection_items_cid
+    ON ai_collection_items(collection_id, sort_order);
 `
 	_, err = s.db.Exec(newTablesSchema)
 	return err
