@@ -344,7 +344,7 @@ export default function ContainerLogsPage({ preselectedContainerId, onContainerS
                     alignItems: 'flex-start',
                     borderLeft: `2px solid ${isStderr ? 'var(--danger)' : 'rgba(110, 86, 207, 0.2)'}`,
                     background: isStderr ? 'rgba(255, 92, 114, 0.02)' : 'transparent',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.015)'
+                    borderBottom: '1px solid var(--border)'
                   }}
                 >
                   {/* Timestamp */}
@@ -377,7 +377,7 @@ export default function ContainerLogsPage({ preselectedContainerId, onContainerS
 
                   {/* Log Content */}
                   <span style={{
-                    color: isStderr ? '#fca5a5' : 'rgba(255, 255, 255, 0.9)',
+                    color: isStderr ? 'var(--danger)' : 'var(--text-primary)',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-all',
                     flex: 1,

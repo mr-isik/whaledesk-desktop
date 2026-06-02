@@ -369,7 +369,11 @@ export default function ApiTesterPage() {
         
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {activeSideTab === 'ai' ? (
-            <AIPanel onApply={handleAIApply} />
+            <AIPanel 
+              onApply={handleAIApply} 
+              activeUrl={url} 
+              activeMethod={method} 
+            />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {!activeEnv ? (

@@ -1,4 +1,4 @@
-import { Activity, Box, Settings, Terminal, ServerCog, Layers, ScrollText, ChevronDown } from "lucide-react";
+import { Activity, Box, Settings, Terminal, ServerCog, Layers, ScrollText, ChevronDown, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import ApiTesterPage from "../pages/ApiTesterPage";
 import ContainerLogsPage from "../pages/ContainerLogsPage";
@@ -19,6 +19,32 @@ export default function MainLayout() {
   const [dockerOnline, setDockerOnline] = useState<boolean>(false);
   const [dbOnline, setDbOnline] = useState<boolean>(false);
   const [selectedLogContainerId, setSelectedLogContainerId] = useState<string>("");
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('dockit-theme') as 'light' | 'dark') || 'dark';
+  });
+
+  useEffect(() => {
+    // Sync theme attribute with html element
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    // Listen for theme changes from other components (like Settings page)
+    const handleThemeChange = () => {
+      const currentTheme = (localStorage.getItem('dockit-theme') as 'light' | 'dark') || 'dark';
+      setTheme(currentTheme);
+    };
+    window.addEventListener('dockit-theme-change', handleThemeChange);
+    return () => window.removeEventListener('dockit-theme-change', handleThemeChange);
+  }, []);
+
+  const toggleTheme = (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    localStorage.setItem('dockit-theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    window.dispatchEvent(new Event('dockit-theme-change'));
+  };
 
   useEffect(() => {
     checkInfraStatus();
@@ -150,10 +176,10 @@ export default function MainLayout() {
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
-            <Box className="logo-icon" size={16} strokeWidth={2.5} />
-            <span style={{ fontSize: "12.5px", fontWeight: 700 }}>Dockit Console</span>
+            <Box className="logo-icon" size={19} strokeWidth={2.5} />
+            <span style={{ fontSize: "15px", fontWeight: 700 }}>Dockit Console</span>
           </div>
-          <ChevronDown size={12} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+          <ChevronDown size={14} color="var(--text-muted)" style={{ opacity: 0.6 }} />
         </div>
 
         <nav className="nav-links">
@@ -162,7 +188,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("dashboard")}
           >
             <div className="nav-item-inner">
-              <Activity size={15} />
+              <Activity size={18} />
               <span>Dashboard</span>
             </div>
             <span className="shortcut-tag">1</span>
@@ -173,7 +199,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("containers")}
           >
             <div className="nav-item-inner">
-              <Box size={15} />
+              <Box size={18} />
               <span>Containers</span>
             </div>
             <span className="shortcut-tag">2</span>
@@ -184,7 +210,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("container-logs")}
           >
             <div className="nav-item-inner">
-              <ScrollText size={15} />
+              <ScrollText size={18} />
               <span>Logs Console</span>
             </div>
             <span className="shortcut-tag">3</span>
@@ -195,7 +221,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("api")}
           >
             <div className="nav-item-inner">
-              <Terminal size={15} />
+              <Terminal size={18} />
               <span>API Tester</span>
             </div>
             <span className="shortcut-tag">4</span>
@@ -206,7 +232,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("db")}
           >
             <div className="nav-item-inner">
-              <ServerCog size={15} />
+              <ServerCog size={18} />
               <span>DB Studio</span>
             </div>
             <span className="shortcut-tag">5</span>
@@ -217,7 +243,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("envs")}
           >
             <div className="nav-item-inner">
-              <Layers size={15} />
+              <Layers size={18} />
               <span>Environments</span>
             </div>
             <span className="shortcut-tag">6</span>
@@ -228,7 +254,7 @@ export default function MainLayout() {
             onClick={() => setActivePage("settings")}
           >
             <div className="nav-item-inner">
-              <Settings size={15} />
+              <Settings size={18} />
               <span>Settings</span>
             </div>
             <span className="shortcut-tag">⌘,</span>
@@ -247,6 +273,29 @@ export default function MainLayout() {
           <div className="infra-status-item">
             <span>DB Connection</span>
             <span className={`infra-indicator ${dbOnline ? "online" : "offline"}`} title={dbOnline ? "Active" : "Inactive"} />
+          </div>
+        </div>
+
+        {/* Premium Sidebar Theme Toggle */}
+        <div className="sidebar-theme-toggle">
+          <div className="theme-toggle-label">Appearance</div>
+          <div className="theme-toggle-group">
+            <button 
+              className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
+              onClick={() => toggleTheme('dark')}
+              title="Switch to Dark Theme"
+            >
+              <Moon size={13.5} />
+              <span>Dark</span>
+            </button>
+            <button 
+              className={`theme-toggle-btn ${theme === 'light' ? 'active' : ''}`}
+              onClick={() => toggleTheme('light')}
+              title="Switch to Light Theme"
+            >
+              <Sun size={13.5} />
+              <span>Light</span>
+            </button>
           </div>
         </div>
 

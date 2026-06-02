@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Save, AlertCircle, KeyRound, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { GetSetting, SaveSetting } from '../../wailsjs/go/bindings/SettingsBinding';
 
 export default function SettingsPage() {
@@ -8,6 +8,26 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('dockit-theme') as 'light' | 'dark') || 'dark';
+  });
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const currentTheme = (localStorage.getItem('dockit-theme') as 'light' | 'dark') || 'dark';
+      setTheme(currentTheme);
+    };
+    window.addEventListener('dockit-theme-change', handleThemeChange);
+    return () => window.removeEventListener('dockit-theme-change', handleThemeChange);
+  }, []);
+
+  const handleThemeToggle = (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    localStorage.setItem('dockit-theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    window.dispatchEvent(new Event('dockit-theme-change'));
+  };
 
   useEffect(() => {
     loadSettings();
@@ -45,6 +65,69 @@ export default function SettingsPage() {
       <div>
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">Configure application-wide settings and integrations</p>
+      </div>
+
+      {/* Appearance Settings Card */}
+      <div className="glass-card" style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sun size={16} color="var(--accent-primary)" />
+          Appearance Settings
+        </h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <label style={{ fontSize: '12.5px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+            Application Theme
+          </label>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+            <button
+              onClick={() => handleThemeToggle('dark')}
+              className={`btn-outline ${theme === 'dark' ? 'active' : ''}`}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                border: theme === 'dark' ? '1px solid var(--accent-primary)' : '1px solid var(--border)',
+                background: theme === 'dark' ? 'rgba(110, 86, 207, 0.04)' : 'var(--bg-tertiary)',
+                color: theme === 'dark' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '12.5px'
+              }}
+            >
+              <Moon size={15} color={theme === 'dark' ? 'var(--accent-primary)' : 'var(--text-secondary)'} />
+              Dark Mode (Cosmic Developer)
+            </button>
+            <button
+              onClick={() => handleThemeToggle('light')}
+              className={`btn-outline ${theme === 'light' ? 'active' : ''}`}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                border: theme === 'light' ? '1px solid var(--accent-primary)' : '1px solid var(--border)',
+                background: theme === 'light' ? 'rgba(110, 86, 207, 0.04)' : 'var(--bg-tertiary)',
+                color: theme === 'light' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '12.5px'
+              }}
+            >
+              <Sun size={15} color={theme === 'light' ? 'var(--accent-primary)' : 'var(--text-secondary)'} />
+              Light Mode (Cosmic Clean)
+            </button>
+          </div>
+          <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+            Choose between Dockit's dark, linear-inspired developer workspace or a crisp, high-contrast light mode.
+          </p>
+        </div>
       </div>
 
       <div className="glass-card" style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
