@@ -102,11 +102,13 @@ export default function AIPanel({ onApply, activeUrl, activeMethod }: AIPanelPro
   };
 
   const handleApply = (item: domain.AICollectionItem) => {
-    let parsedHeaders = item.headers;
+    let parsedHeaders: Record<string, string> = {};
     if (typeof item.headers === 'string' && item.headers.trim() !== '') {
         try { parsedHeaders = JSON.parse(item.headers); } catch (e) {}
+    } else if (typeof item.headers === 'object' && item.headers !== null) {
+        parsedHeaders = item.headers as Record<string, string>;
     }
-    onApply(item.method, item.url, parsedHeaders || {}, item.payload || '');
+    onApply(item.method, item.url, parsedHeaders, item.payload || '');
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
