@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"context"
-	"dockit-desktop/internal/domain"
+	"whaledesk-desktop/internal/domain"
 	"fmt"
 	"net"
 	"net/url"

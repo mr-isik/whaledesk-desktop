@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"dockit-desktop/internal/domain"
-	"dockit-desktop/internal/infrastructure/crypto"
-	"dockit-desktop/internal/ports"
+	"whaledesk-desktop/internal/domain"
+	"whaledesk-desktop/internal/infrastructure/crypto"
+	"whaledesk-desktop/internal/ports"
 )
 
 const secretMask = "••••••••"

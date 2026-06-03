@@ -2,7 +2,7 @@ package httpclient
 
 import (
 	"context"
-	"dockit-desktop/internal/domain"
+	"whaledesk-desktop/internal/domain"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,7 +37,7 @@ func (c *HTTPClient) SendRequest(ctx context.Context, method string, url string,
 
 	// Apply default headers
 	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("User-Agent", "Dockit-Desktop/1.0")
+	req.Header.Set("User-Agent", "whaledesk-desktop/1.0")
 
 	// Set content-type if payload exists
 	if payload != "" {

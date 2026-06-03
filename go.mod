@@ -1,4 +1,4 @@
-module dockit-desktop
+module whaledesk-desktop
 
 go 1.25.0
 

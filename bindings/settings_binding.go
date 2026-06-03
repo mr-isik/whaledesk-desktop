@@ -2,7 +2,7 @@ package bindings
 
 import (
 	"context"
-	"dockit-desktop/internal/usecase"
+	"whaledesk-desktop/internal/usecase"
 )
 
 type SettingsBinding struct {

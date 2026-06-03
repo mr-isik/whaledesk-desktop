@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	keyringService = "dockit-desktop"
+	keyringService = "whaledesk-desktop"
 	keyringUser    = "env-encryption-key"
 )
 

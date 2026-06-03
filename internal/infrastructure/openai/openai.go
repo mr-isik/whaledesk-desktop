@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"dockit-desktop/internal/ports"
+	"whaledesk-desktop/internal/ports"
 )
 
 const (
@@ -63,7 +63,7 @@ func (c *OpenAIClient) GenerateRequest(ctx context.Context, apiKey string, req *
 		envVarsStr = "None"
 	}
 
-	systemPrompt := fmt.Sprintf(`You are an API request generator for a desktop HTTP client tool called Dockit.
+	systemPrompt := fmt.Sprintf(`You are an API request generator for a desktop HTTP client tool called WhaleDesk.
 Given a user's API documentation (YAML or JSON from OpenAPI/Swagger), generate a valid HTTP request for the endpoint they are trying to reach.
 
 Available environment variables (use {{var_name}} syntax):
@@ -156,7 +156,7 @@ func (c *OpenAIClient) GenerateBatchRequests(ctx context.Context, apiKey string,
 		envVarsStr = "None"
 	}
 
-	systemPrompt := fmt.Sprintf(`You are an API request generator for a desktop HTTP client tool called Dockit.
+	systemPrompt := fmt.Sprintf(`You are an API request generator for a desktop HTTP client tool called WhaleDesk.
 Given an OpenAPI/Swagger documentation chunk (YAML or JSON), extract ALL endpoints found. 
 Note: The chunk might be a partial document. Ignore syntax errors and extract any complete endpoints you can identify.
 

@@ -2,8 +2,8 @@ package usecase
 
 import (
 	"context"
-	"dockit-desktop/internal/domain"
-	"dockit-desktop/internal/ports"
+	"whaledesk-desktop/internal/domain"
+	"whaledesk-desktop/internal/ports"
 )
 
 type DockerUsecase struct {

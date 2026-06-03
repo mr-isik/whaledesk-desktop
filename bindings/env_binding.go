@@ -3,8 +3,8 @@ package bindings
 import (
 	"context"
 	"encoding/json"
-	"dockit-desktop/internal/domain"
-	"dockit-desktop/internal/usecase"
+	"whaledesk-desktop/internal/domain"
+	"whaledesk-desktop/internal/usecase"
 )
 
 type EnvBinding struct {

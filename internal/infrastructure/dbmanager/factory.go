@@ -1,9 +1,9 @@
 package dbmanager
 
 import (
-	"dockit-desktop/internal/domain"
-	"dockit-desktop/internal/infrastructure/dbmanager/postgres"
-	"dockit-desktop/internal/ports"
+	"whaledesk-desktop/internal/domain"
+	"whaledesk-desktop/internal/infrastructure/dbmanager/postgres"
+	"whaledesk-desktop/internal/ports"
 	"fmt"
 )
 

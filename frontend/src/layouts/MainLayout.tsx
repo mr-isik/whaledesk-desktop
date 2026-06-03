@@ -1,49 +1,72 @@
-import { Activity, Box, Settings, Terminal, ServerCog, Layers, ScrollText, ChevronDown, Sun, Moon } from "lucide-react";
-import { useState, useEffect } from "react";
+import {
+  Activity,
+  Box,
+  ChevronDown,
+  Layers,
+  Moon,
+  ScrollText,
+  ServerCog,
+  Settings,
+  Sun,
+  Terminal,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import ApiTesterPage from "../pages/ApiTesterPage";
 import ContainerLogsPage from "../pages/ContainerLogsPage";
 import ContainersPage from "../pages/ContainersPage";
 import DashboardPage from "../pages/DashboardPage";
 
+import { IsConnected } from "../../wailsjs/go/bindings/DbManagerBinding";
+import { IsDaemonRunning } from "../../wailsjs/go/bindings/DockerBinding";
 import DbManagerPage from "../pages/DbManagerPage";
 import EnvironmentsPage from "../pages/EnvironmentsPage";
 import SettingsPage from "../pages/SettingsPage";
-import { IsDaemonRunning } from "../../wailsjs/go/bindings/DockerBinding";
-import { IsConnected } from "../../wailsjs/go/bindings/DbManagerBinding";
 import "./MainLayout.css";
 
-type PageType = "dashboard" | "containers" | "container-logs" | "api" | "db" | "envs" | "settings";
+type PageType =
+  | "dashboard"
+  | "containers"
+  | "container-logs"
+  | "api"
+  | "db"
+  | "envs"
+  | "settings";
 
 export default function MainLayout() {
   const [activePage, setActivePage] = useState<PageType>("dashboard");
   const [dockerOnline, setDockerOnline] = useState<boolean>(false);
   const [dbOnline, setDbOnline] = useState<boolean>(false);
-  const [selectedLogContainerId, setSelectedLogContainerId] = useState<string>("");
+  const [selectedLogContainerId, setSelectedLogContainerId] =
+    useState<string>("");
 
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('dockit-theme') as 'light' | 'dark') || 'dark';
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (
+      (localStorage.getItem("whaledesk-theme") as "light" | "dark") || "dark"
+    );
   });
 
   useEffect(() => {
     // Sync theme attribute with html element
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
   useEffect(() => {
     // Listen for theme changes from other components (like Settings page)
     const handleThemeChange = () => {
-      const currentTheme = (localStorage.getItem('dockit-theme') as 'light' | 'dark') || 'dark';
+      const currentTheme =
+        (localStorage.getItem("whaledesk-theme") as "light" | "dark") || "dark";
       setTheme(currentTheme);
     };
-    window.addEventListener('dockit-theme-change', handleThemeChange);
-    return () => window.removeEventListener('dockit-theme-change', handleThemeChange);
+    window.addEventListener("whaledesk-theme-change", handleThemeChange);
+    return () =>
+      window.removeEventListener("whaledesk-theme-change", handleThemeChange);
   }, []);
 
-  const toggleTheme = (newTheme: 'light' | 'dark') => {
+  const toggleTheme = (newTheme: "light" | "dark") => {
     setTheme(newTheme);
-    localStorage.setItem('dockit-theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    window.dispatchEvent(new Event('dockit-theme-change'));
+    localStorage.setItem("whaledesk-theme", newTheme);
+    document.documentElement.setAttribute("data-theme", newTheme);
+    window.dispatchEvent(new Event("whaledesk-theme-change"));
   };
 
   useEffect(() => {
@@ -57,12 +80,12 @@ export default function MainLayout() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 1. Check if user is actively editing text in form controls
       const active = document.activeElement;
-      const isInput = active && (
-        active.tagName === "INPUT" || 
-        active.tagName === "TEXTAREA" || 
-        active.tagName === "SELECT" ||
-        active.getAttribute("contenteditable") === "true"
-      );
+      const isInput =
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT" ||
+          active.getAttribute("contenteditable") === "true");
 
       // Escape key unfocuses active search/input fields
       if (e.key === "Escape" && isInput) {
@@ -92,12 +115,12 @@ export default function MainLayout() {
           setActivePage("settings");
         }
       }
-      
+
       // 3. Focus Search/Filter controls: '/' or 's'
       else if (e.key === "/" || e.key === "s") {
         e.preventDefault();
         const searchInput = document.querySelector(
-          'input[placeholder*="Search"], input[placeholder*="Filter"], input[placeholder*="search"], input[placeholder*="filter"]'
+          'input[placeholder*="Search"], input[placeholder*="Filter"], input[placeholder*="search"], input[placeholder*="filter"]',
         ) as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
@@ -109,14 +132,17 @@ export default function MainLayout() {
       else if (e.key === "r" || e.key === "R") {
         e.preventDefault();
         const refreshBtn = document.querySelector(
-          'button[title*="Refresh"], button[title*="Sync"], button:has(svg.animate-spin)'
+          'button[title*="Refresh"], button[title*="Sync"], button:has(svg.animate-spin)',
         ) as HTMLButtonElement;
 
         const allButtons = Array.from(document.querySelectorAll("button"));
-        const targetBtn = refreshBtn || allButtons.find(btn => 
-          btn.innerText.toLowerCase().includes("sync") || 
-          btn.innerText.toLowerCase().includes("refresh")
-        );
+        const targetBtn =
+          refreshBtn ||
+          allButtons.find(
+            (btn) =>
+              btn.innerText.toLowerCase().includes("sync") ||
+              btn.innerText.toLowerCase().includes("refresh"),
+          );
 
         if (targetBtn && !targetBtn.disabled) {
           targetBtn.click();
@@ -149,15 +175,21 @@ export default function MainLayout() {
       case "dashboard":
         return <DashboardPage />;
       case "containers":
-        return <ContainersPage onNavigateToLogs={(id) => {
-          setSelectedLogContainerId(id);
-          setActivePage("container-logs");
-        }} />;
+        return (
+          <ContainersPage
+            onNavigateToLogs={(id) => {
+              setSelectedLogContainerId(id);
+              setActivePage("container-logs");
+            }}
+          />
+        );
       case "container-logs":
-        return <ContainerLogsPage 
-          preselectedContainerId={selectedLogContainerId} 
-          onContainerSelect={(id) => setSelectedLogContainerId(id)} 
-        />;
+        return (
+          <ContainerLogsPage
+            preselectedContainerId={selectedLogContainerId}
+            onContainerSelect={(id) => setSelectedLogContainerId(id)}
+          />
+        );
       case "api":
         return <ApiTesterPage />;
       case "db":
@@ -175,11 +207,24 @@ export default function MainLayout() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flex: 1,
+            }}
+          >
             <Box className="logo-icon" size={19} strokeWidth={2.5} />
-            <span style={{ fontSize: "15px", fontWeight: 700 }}>Dockit Console</span>
+            <span style={{ fontSize: "15px", fontWeight: 700 }}>
+              WhaleDesk Console
+            </span>
           </div>
-          <ChevronDown size={14} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+          <ChevronDown
+            size={14}
+            color="var(--text-muted)"
+            style={{ opacity: 0.6 }}
+          />
         </div>
 
         <nav className="nav-links">
@@ -249,8 +294,8 @@ export default function MainLayout() {
             <span className="shortcut-tag">6</span>
           </div>
 
-          <div 
-            className={`nav-item ${activePage === "settings" ? "active" : ""}`} 
+          <div
+            className={`nav-item ${activePage === "settings" ? "active" : ""}`}
             onClick={() => setActivePage("settings")}
           >
             <div className="nav-item-inner">
@@ -264,15 +309,21 @@ export default function MainLayout() {
         {/* Dynamic Sidebar Infrastructure Widget */}
         <div className="sidebar-infra">
           <div className="sidebar-infra-title">Infrastructure</div>
-          
+
           <div className="infra-status-item">
             <span>Docker Engine</span>
-            <span className={`infra-indicator ${dockerOnline ? "online" : "offline"}`} title={dockerOnline ? "Connected" : "Disconnected"} />
+            <span
+              className={`infra-indicator ${dockerOnline ? "online" : "offline"}`}
+              title={dockerOnline ? "Connected" : "Disconnected"}
+            />
           </div>
 
           <div className="infra-status-item">
             <span>DB Connection</span>
-            <span className={`infra-indicator ${dbOnline ? "online" : "offline"}`} title={dbOnline ? "Active" : "Inactive"} />
+            <span
+              className={`infra-indicator ${dbOnline ? "online" : "offline"}`}
+              title={dbOnline ? "Active" : "Inactive"}
+            />
           </div>
         </div>
 
@@ -280,17 +331,17 @@ export default function MainLayout() {
         <div className="sidebar-theme-toggle">
           <div className="theme-toggle-label">Appearance</div>
           <div className="theme-toggle-group">
-            <button 
-              className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
-              onClick={() => toggleTheme('dark')}
+            <button
+              className={`theme-toggle-btn ${theme === "dark" ? "active" : ""}`}
+              onClick={() => toggleTheme("dark")}
               title="Switch to Dark Theme"
             >
               <Moon size={13.5} />
               <span>Dark</span>
             </button>
-            <button 
-              className={`theme-toggle-btn ${theme === 'light' ? 'active' : ''}`}
-              onClick={() => toggleTheme('light')}
+            <button
+              className={`theme-toggle-btn ${theme === "light" ? "active" : ""}`}
+              onClick={() => toggleTheme("light")}
               title="Switch to Light Theme"
             >
               <Sun size={13.5} />
@@ -298,7 +349,6 @@ export default function MainLayout() {
             </button>
           </div>
         </div>
-
       </aside>
 
       <main className="main-content">{renderContent()}</main>

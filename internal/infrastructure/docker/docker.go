@@ -3,7 +3,7 @@ package docker
 import (
 	"bufio"
 	"context"
-	"dockit-desktop/internal/domain"
+	"whaledesk-desktop/internal/domain"
 	"encoding/json"
 	"io"
 	"strings"

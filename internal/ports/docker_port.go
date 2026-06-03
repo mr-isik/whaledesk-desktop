@@ -2,7 +2,7 @@ package ports
 
 import (
 	"context"
-	"dockit-desktop/internal/domain"
+	"whaledesk-desktop/internal/domain"
 )
 
 type DockerPort interface {

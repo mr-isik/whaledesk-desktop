@@ -8,13 +8,13 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	"dockit-desktop/bindings"
-	"dockit-desktop/internal/infrastructure/crypto"
-	"dockit-desktop/internal/infrastructure/database"
-	"dockit-desktop/internal/infrastructure/docker"
-	"dockit-desktop/internal/infrastructure/httpclient"
-	"dockit-desktop/internal/infrastructure/openai"
-	"dockit-desktop/internal/usecase"
+	"whaledesk-desktop/bindings"
+	"whaledesk-desktop/internal/infrastructure/crypto"
+	"whaledesk-desktop/internal/infrastructure/database"
+	"whaledesk-desktop/internal/infrastructure/docker"
+	"whaledesk-desktop/internal/infrastructure/httpclient"
+	"whaledesk-desktop/internal/infrastructure/openai"
+	"whaledesk-desktop/internal/usecase"
 )
 
 var assets embed.FS
@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("Failed to initialize Docker client: %v", err)
 	}
 
-	dbClient, err := database.NewSQLiteDB("dockit.db")
+	dbClient, err := database.NewSQLiteDB("whaledesk.db")
 	if err != nil {
 		log.Fatalf("Failed to initialize SQLite database: %v", err)
 	}
@@ -58,7 +58,7 @@ func main() {
 	app := NewApp(dockerBinding, dbBinding, apiBinding, dbManagerBinding, envBinding, settingsBinding, aiBinding)
 
 	err = wails.Run(&options.App{
-		Title:  "dockit-desktop",
+		Title:  "whaledesk-desktop",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{

@@ -2,9 +2,9 @@ package bindings
 
 import (
 	"context"
-	"dockit-desktop/internal/domain"
-	"dockit-desktop/internal/ports"
-	"dockit-desktop/internal/usecase"
+	"whaledesk-desktop/internal/domain"
+	"whaledesk-desktop/internal/ports"
+	"whaledesk-desktop/internal/usecase"
 )
 
 type AIBinding struct {

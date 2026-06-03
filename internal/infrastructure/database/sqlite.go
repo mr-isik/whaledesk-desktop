@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
-	"dockit-desktop/internal/domain"
+	"whaledesk-desktop/internal/domain"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"

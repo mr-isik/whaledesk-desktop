@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"dockit-desktop/bindings"
+	"whaledesk-desktop/bindings"
 )
 
 type App struct {

@@ -2,10 +2,10 @@ package usecase
 
 import (
 	"context"
-	"dockit-desktop/internal/domain"
-	"dockit-desktop/internal/infrastructure/crypto"
-	"dockit-desktop/internal/infrastructure/dbmanager"
-	"dockit-desktop/internal/ports"
+	"whaledesk-desktop/internal/domain"
+	"whaledesk-desktop/internal/infrastructure/crypto"
+	"whaledesk-desktop/internal/infrastructure/dbmanager"
+	"whaledesk-desktop/internal/ports"
 	"fmt"
 	"sync"
 

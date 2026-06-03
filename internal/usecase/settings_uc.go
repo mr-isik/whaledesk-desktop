@@ -2,8 +2,8 @@ package usecase
 
 import (
 	"context"
-	"dockit-desktop/internal/infrastructure/crypto"
-	"dockit-desktop/internal/ports"
+	"whaledesk-desktop/internal/infrastructure/crypto"
+	"whaledesk-desktop/internal/ports"
 )
 
 type SettingsUsecase struct {
