@@ -1,39 +1,37 @@
 :root {
-  --bg-primary: #06050a; /* Deepest Midnight Base */
-  --bg-secondary: #0b0a0f; /* Elevated Surface (Sidebar & Cards) */
-  --bg-tertiary: #111017; /* Form Inputs, Active items, Inner containers */
+  --bg-primary: #06050a;
+  --bg-secondary: #0b0a0f;
+  --bg-tertiary: #111017;
   --bg-hover: rgba(255, 255, 255, 0.045);
 
-  --accent-primary: #6e56cf; /* Cosmic Purple / Midnight Violet Accent */
-  --accent-hover: #7c66dc; /* Brightened Indigo for interactive states */
-  --accent-foreground: #ffffff; /* Contrast white for active action text */
+  --accent-primary: #6e56cf;
+  --accent-hover: #7c66dc;
+  --accent-foreground: #ffffff;
   --accent-glow: rgba(110, 86, 207, 0.18);
 
-  --border: rgba(255, 255, 255, 0.05); /* Ultra-thin pixel perfect borders */
-  --border-hover: rgba(255, 255, 255, 0.12); /* Soft hover reveal border */
-  --border-active: rgba(110, 86, 207, 0.35); /* Glowing violet focus border */
+  --border: rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-active: rgba(110, 86, 207, 0.35);
 
-  --text-primary: #f3f3f7; /* Silver ice white (high readability) */
-  --text-secondary: #a1a0ae; /* Lavender grey for subheaders */
-  --text-muted: #595868; /* Deep lavender charcoal for secrets & metadata */
+  --text-primary: #f3f3f7;
+  --text-secondary: #a1a0ae;
+  --text-muted: #595868;
 
-  --success: #00d394; /* Vibrant Teal Emerald */
+  --success: #00d394;
   --success-bg: rgba(0, 211, 148, 0.05);
   --success-border: rgba(0, 211, 148, 0.12);
 
-  --danger: #ff5c72; /* Sleek Coral Rose */
+  --danger: #ff5c72;
   --danger-bg: rgba(255, 92, 114, 0.05);
   --danger-border: rgba(255, 92, 114, 0.12);
 
-  --warning: #f59e0b; /* Warm Amber Gold */
+  --warning: #f59e0b;
   --warning-bg: rgba(245, 158, 11, 0.05);
   --warning-border: rgba(245, 158, 11, 0.12);
 
-  /* Scrollbar custom variables */
   --scrollbar-thumb: rgba(255, 255, 255, 0.06);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.15);
 
-  /* Dynamic shadows - dark cosmic default */
   --shadow-sidebar: 2px 0 16px rgba(0, 0, 0, 0.25);
   --shadow-card:
     0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.02);
@@ -41,10 +39,9 @@
     0 6px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(110, 86, 207, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
 
-  /* Layout Metrics & Radii - Tactile & Spaced Up */
-  --radius-sm: 8px; /* Buttons, tags, shortcut caps (increased from 6px) */
-  --radius-md: 10px; /* Cards & elevated page panels (increased from 8px) */
-  --radius-lg: 14px; /* (increased from 12px) */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
   --transition-fast: 0.1s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -53,40 +50,39 @@
 }
 
 [data-theme="light"] {
-  --bg-primary: #000000; /* Crisp Light Neutral Base */
-  --bg-secondary: #ffffff; /* Pure White Card/Sidebar Surface */
-  --bg-tertiary: #eff1f4; /* Soft Light-Grey for Inputs and active blocks */
+  --bg-primary: #000000;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eff1f4;
   --bg-hover: rgba(0, 0, 0, 0.035);
 
-  --accent-primary: #5f3dc4; /* Deep Cosmic Purple Accent */
-  --accent-hover: #4e2eb0; /* Richer Darker Violet on hover */
+  --accent-primary: #5f3dc4;
+  --accent-hover: #4e2eb0;
   --accent-foreground: #ffffff;
   --accent-glow: rgba(95, 61, 196, 0.08);
 
-  --border: rgba(0, 0, 0, 0.06); /* Delicate clean border */
-  --border-hover: rgba(0, 0, 0, 0.12); /* Defined border on hover */
-  --border-active: rgba(95, 61, 196, 0.3); /* Purple glow active border */
+  --border: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(0, 0, 0, 0.12);
+  --border-active: rgba(95, 61, 196, 0.3);
 
-  --text-primary: #18171c; /* Pitch primary text for great contrast */
-  --text-secondary: #656470; /* Muted dark grey-purple for secondary text */
-  --text-muted: #8c8b98; /* Subdued silver-grey for meta info */
+  --text-primary: #18171c;
+  --text-secondary: #656470;
+  --text-muted: #8c8b98;
 
-  --success: #00a874; /* Solid Emerald Green */
+  --success: #00a874;
   --success-bg: rgba(0, 168, 116, 0.05);
   --success-border: rgba(0, 168, 116, 0.12);
 
-  --danger: #db3b4f; /* Deep Coral Red */
+  --danger: #db3b4f;
   --danger-bg: rgba(219, 59, 79, 0.05);
   --danger-border: rgba(219, 59, 79, 0.12);
 
-  --warning: #d97706; /* Rich Amber Brownish Gold */
+  --warning: #d97706;
   --warning-bg: rgba(217, 119, 6, 0.05);
   --warning-border: rgba(217, 119, 6, 0.12);
 
   --scrollbar-thumb: rgba(0, 0, 0, 0.08);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.18);
 
-  /* Soft premium light mode shadows - very clean & subtle */
   --shadow-sidebar: 2px 0 12px rgba(0, 0, 0, 0.025);
   --shadow-card:
     0 4px 16px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -107,7 +103,6 @@ body,
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  /* Breathtaking top center cosmic glow radiating into midnight space */
   background:
     radial-gradient(
       circle at 50% 0%,
@@ -160,7 +155,6 @@ a:hover {
   color: var(--accent-primary);
 }
 
-/* Custom Scrollbar - Sleek, low-profile and refined (slightly wider for readability) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -176,7 +170,6 @@ a:hover {
   background: var(--scrollbar-thumb-hover);
 }
 
-/* Base input & textarea override for supreme professional focus states */
 input,
 select,
 textarea {
@@ -184,7 +177,6 @@ textarea {
   letter-spacing: inherit;
 }
 
-/* Elegant scale overrides for inline font-sizes in JSX/TSX components to support sizing adjustments */
 [style*="font-size: 9px"],
 [style*="fontSize: 9px"] {
   font-size: 10px !important;
