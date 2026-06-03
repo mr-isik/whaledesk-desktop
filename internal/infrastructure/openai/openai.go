@@ -53,6 +53,7 @@ func (c *OpenAIClient) GenerateRequest(ctx context.Context, apiKey string, req *
 	if apiKey == "" {
 		return nil, fmt.Errorf("openai: API key is required")
 	}
+	apiKey = strings.TrimSpace(apiKey)
 
 	var envVarsList []string
 	for k := range activeEnvVars {
@@ -146,6 +147,7 @@ func (c *OpenAIClient) GenerateBatchRequests(ctx context.Context, apiKey string,
 	if apiKey == "" {
 		return nil, fmt.Errorf("openai: API key is required")
 	}
+	apiKey = strings.TrimSpace(apiKey)
 
 	var envVarsList []string
 	for k := range activeEnvVars {

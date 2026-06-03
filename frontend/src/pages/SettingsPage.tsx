@@ -65,7 +65,7 @@ export default function SettingsPage() {
     setSuccess("");
 
     try {
-      await SaveSetting("OPENAI_API_KEY", openAiKey);
+      await SaveSetting("OPENAI_API_KEY", openAiKey.trim());
       setSuccess("Settings saved successfully");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
