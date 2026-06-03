@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/zalando/go-keyring"
 )
@@ -22,6 +23,9 @@ type CryptoService struct {
 }
 
 func NewCryptoService() (*CryptoService, error) {
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		keyring.MockInit()
+	}
 	key, err := loadOrCreateKey()
 	if err != nil {
 		return nil, fmt.Errorf("crypto: key initialization error: %w", err)
@@ -99,7 +103,7 @@ func loadOrCreateKey() ([]byte, error) {
 
 	encoded = base64.StdEncoding.EncodeToString(key)
 	if setErr := keyring.Set(keyringService, keyringUser, encoded); setErr != nil {
-		return nil, fmt.Errorf("crypto: anahtar keyring'e kaydedilemedi: %w", setErr)
+		return nil, fmt.Errorf("crypto: failed to save key to keyring: %w", setErr)
 	}
 
 	return key, nil
