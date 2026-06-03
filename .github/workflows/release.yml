@@ -17,10 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux/amd64
+            wails_flags: "-tags webkit2_41"
           - os: windows-latest
             platform: windows/amd64
+            wails_flags: ""
           - os: macos-latest
             platform: darwin/universal
+            wails_flags: ""
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,7 +50,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Application
-        run: wails build -platform ${{ matrix.platform }}
+        run: wails build -platform ${{ matrix.platform }} ${{ matrix.wails_flags }}
 
       - name: Prepare Files for Release
         shell: bash
