@@ -5,12 +5,15 @@ on:
     tags:
       - "v*"
 
-# GitHub'ın Release sayfasına dosya yükleyebilmesi için zorunlu izin
 permissions:
   contents: write
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Her platform için ayrı build job'ı
+  # ─────────────────────────────────────────────────────────────
   build:
+    name: Build – ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -18,102 +21,204 @@ jobs:
           - os: ubuntu-latest
             platform: linux/amd64
             wails_flags: "-tags webkit2_41"
+
           - os: windows-latest
             platform: windows/amd64
             wails_flags: ""
+
           - os: macos-latest
             platform: darwin/universal
             wails_flags: ""
 
     runs-on: ${{ matrix.os }}
+
     steps:
-      - name: Checkout Code
+      # ── Kaynak kodu çek ──────────────────────────────────────
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # ── Go kur ───────────────────────────────────────────────
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.23"
+          cache: true
 
+      # ── Node.js kur (frontend build için) ────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
+      # ── Linux bağımlılıkları ──────────────────────────────────
       - name: Install Linux Dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            dpkg-dev
 
+      # ── Wails CLI kur ─────────────────────────────────────────
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build Application
-        run: wails build -platform ${{ matrix.platform }} ${{ matrix.wails_flags }}
+      # ── Uygulamayı derle ──────────────────────────────────────
+      - name: Build
+        run: wails build -clean -platform ${{ matrix.platform }} ${{ matrix.wails_flags }}
 
-      - name: Prepare Files for Release
-        shell: bash
+      # ══════════════════════════════════════════════════════════
+      # LINUX: tar.gz + .deb paketi oluştur
+      # ══════════════════════════════════════════════════════════
+      - name: Package – Linux
+        if: runner.os == 'Linux'
         run: |
+          set -euo pipefail
           cd build/bin
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            mv *.exe whaledesk-windows.exe
-          elif [ "${{ runner.os }}" == "macOS" ]; then
-            zip -r whaledesk-mac.zip *.app
-          else
-            find . -maxdepth 1 -type f -not -name "*.*" -exec mv {} whaledesk-linux \;
-            
-            # Package as .tar.gz (preserves file execution permissions)
-            tar -czf whaledesk-linux.tar.gz whaledesk-linux
-            
-            # Build Debian package (.deb) for easy installation
-            mkdir -p debian/DEBIAN
-            mkdir -p debian/usr/bin
-            mkdir -p debian/usr/share/applications
-            mkdir -p debian/usr/share/pixmaps
-            
-            cp whaledesk-linux debian/usr/bin/whaledesk-desktop
-            chmod +x debian/usr/bin/whaledesk-desktop
-            
-            if [ -f "../appicon.png" ]; then
-              cp ../appicon.png debian/usr/share/pixmaps/whaledesk-desktop.png
-            fi
-            
-            VERSION=$(echo "$GITHUB_REF_NAME" | sed 's/^v//')
-            if [ -z "$VERSION" ]; then
-              VERSION="1.0.0"
-            fi
-            
-            printf "%s\n" \
-              "Package: whaledesk-desktop" \
-              "Version: $VERSION" \
-              "Section: utils" \
-              "Priority: optional" \
-              "Architecture: amd64" \
-              "Depends: libgtk-3-0, libwebkit2gtk-4.1-0" \
-              "Maintainer: mr-isik <faruk_isik_24@protonmail.com>" \
-              "Description: Whaledesk Desktop Client" \
-              > debian/DEBIAN/control
-              
-            printf "%s\n" \
-              "[Desktop Entry]" \
-              "Name=Whaledesk" \
-              "Comment=Whaledesk Desktop Client" \
-              "Exec=whaledesk-desktop" \
-              "Icon=whaledesk-desktop" \
-              "Terminal=false" \
-              "Type=Application" \
-              "Categories=Utility;" \
-              > debian/usr/share/applications/whaledesk-desktop.desktop
-              
-            dpkg-deb --build debian whaledesk-desktop_${VERSION}_amd64.deb
+
+          BINARY="whaledesk-desktop"
+          VERSION="${GITHUB_REF_NAME#v}"
+          [[ -z "$VERSION" ]] && VERSION="1.0.0"
+
+          # Binary'yi doğrula
+          ls -la
+          chmod +x "$BINARY"
+
+          # ── tar.gz (çalıştırma izinlerini korur) ──────────────
+          tar -czf "whaledesk-linux-amd64.tar.gz" "$BINARY"
+
+          # ── .deb paketi ───────────────────────────────────────
+          PKG="whaledesk-desktop_${VERSION}_amd64"
+          mkdir -p "${PKG}/DEBIAN"
+          mkdir -p "${PKG}/usr/bin"
+          mkdir -p "${PKG}/usr/share/applications"
+          mkdir -p "${PKG}/usr/share/pixmaps"
+
+          cp "$BINARY" "${PKG}/usr/bin/whaledesk-desktop"
+          chmod 755   "${PKG}/usr/bin/whaledesk-desktop"
+
+          # Uygulama ikonu
+          if [[ -f "../appicon.png" ]]; then
+            cp ../appicon.png "${PKG}/usr/share/pixmaps/whaledesk-desktop.png"
           fi
 
-      - name: Upload to GitHub Releases
+          # control dosyası
+          cat > "${PKG}/DEBIAN/control" <<EOF
+          Package: whaledesk-desktop
+          Version: ${VERSION}
+          Section: net
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0, libwebkit2gtk-4.1-0
+          Maintainer: mr-isik <faruk_isik_24@protonmail.com>
+          Description: Whaledesk Desktop Client
+           Modern desktop client for Whaledesk.
+          EOF
+
+          # .desktop dosyası
+          cat > "${PKG}/usr/share/applications/whaledesk-desktop.desktop" <<EOF
+          [Desktop Entry]
+          Name=Whaledesk
+          Comment=Whaledesk Desktop Client
+          Exec=whaledesk-desktop
+          Icon=whaledesk-desktop
+          Terminal=false
+          Type=Application
+          Categories=Network;InstantMessaging;
+          EOF
+
+          dpkg-deb --build "$PKG" "${PKG}.deb"
+
+      # ══════════════════════════════════════════════════════════
+      # MACOS: .app'i ditto ile zip'le (izinler korunur)
+      # ══════════════════════════════════════════════════════════
+      - name: Package – macOS
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          cd build/bin
+
+          # Wails outputfilename'den bağımsız olarak .app bul
+          APP=$(find . -maxdepth 1 -name "*.app" | head -n 1)
+          if [[ -z "$APP" ]]; then
+            echo "ERROR: .app bundle bulunamadı!" >&2
+            ls -la
+            exit 1
+          fi
+
+          # ditto – executable bit & extended attributes korunur
+          ditto -c -k --keepParent "$APP" "whaledesk-mac-universal.zip"
+
+      # ══════════════════════════════════════════════════════════
+      # WINDOWS: .exe'yi yeniden adlandır
+      # ══════════════════════════════════════════════════════════
+      - name: Package – Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $src = Get-ChildItem -Path build\bin -Filter "*.exe" | Select-Object -First 1
+          if (-not $src) { Write-Error "EXE bulunamadi!"; exit 1 }
+          Rename-Item -Path $src.FullName -NewName "whaledesk-windows-amd64.exe"
+
+      # ══════════════════════════════════════════════════════════
+      # Artifact'ları upload et (her platform sadece kendi dosyalarını)
+      # ══════════════════════════════════════════════════════════
+      - name: Upload artifact – Linux
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            build/bin/whaledesk-linux-amd64.tar.gz
+            build/bin/*.deb
+          if-no-files-found: error
+
+      - name: Upload artifact – macOS
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-package
+          path: build/bin/whaledesk-mac-universal.zip
+          if-no-files-found: error
+
+      - name: Upload artifact – Windows
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: build/bin/whaledesk-windows-amd64.exe
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────
+  # TÜM BUILD'LER BİTTİKTEN SONRA tek seferlik Release oluştur
+  # Race condition yok, tüm dosyalar bir arada
+  # ─────────────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+
+      - name: List release files
+        run: find release-files -type f | sort
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
           files: |
-            build/bin/whaledesk-windows.exe
-            build/bin/whaledesk-mac.zip
-            build/bin/whaledesk-linux.tar.gz
-            build/bin/*.deb
+            release-files/whaledesk-linux-amd64.tar.gz
+            release-files/*.deb
+            release-files/whaledesk-mac-universal.zip
+            release-files/whaledesk-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
