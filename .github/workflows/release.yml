@@ -33,24 +33,20 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # ── Kaynak kodu çek ──────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Go kur ───────────────────────────────────────────────
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.23"
           cache: true
 
-      # ── Node.js kur (frontend build için) ────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # ── Linux bağımlılıkları ──────────────────────────────────
       - name: Install Linux Dependencies
         if: runner.os == 'Linux'
         run: |
@@ -60,17 +56,12 @@ jobs:
             libwebkit2gtk-4.1-dev \
             dpkg-dev
 
-      # ── Wails CLI kur ─────────────────────────────────────────
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      # ── Uygulamayı derle ──────────────────────────────────────
       - name: Build
         run: wails build -clean -platform ${{ matrix.platform }} ${{ matrix.wails_flags }}
 
-      # ══════════════════════════════════════════════════════════
-      # LINUX: tar.gz + .deb paketi oluştur
-      # ══════════════════════════════════════════════════════════
       - name: Package – Linux
         if: runner.os == 'Linux'
         run: |
@@ -130,9 +121,6 @@ jobs:
 
           dpkg-deb --build "$PKG" "${PKG}.deb"
 
-      # ══════════════════════════════════════════════════════════
-      # MACOS: .app'i ditto ile zip'le (izinler korunur)
-      # ══════════════════════════════════════════════════════════
       - name: Package – macOS
         if: runner.os == 'macOS'
         run: |
@@ -147,12 +135,8 @@ jobs:
             exit 1
           fi
 
-          # ditto – executable bit & extended attributes korunur
           ditto -c -k --keepParent "$APP" "whaledesk-mac-universal.zip"
 
-      # ══════════════════════════════════════════════════════════
-      # WINDOWS: .exe'yi yeniden adlandır
-      # ══════════════════════════════════════════════════════════
       - name: Package – Windows
         if: runner.os == 'Windows'
         shell: pwsh
@@ -161,9 +145,6 @@ jobs:
           if (-not $src) { Write-Error "EXE bulunamadi!"; exit 1 }
           Rename-Item -Path $src.FullName -NewName "whaledesk-windows-amd64.exe"
 
-      # ══════════════════════════════════════════════════════════
-      # Artifact'ları upload et (her platform sadece kendi dosyalarını)
-      # ══════════════════════════════════════════════════════════
       - name: Upload artifact – Linux
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
@@ -190,10 +171,6 @@ jobs:
           path: build/bin/whaledesk-windows-amd64.exe
           if-no-files-found: error
 
-  # ─────────────────────────────────────────────────────────────
-  # TÜM BUILD'LER BİTTİKTEN SONRA tek seferlik Release oluştur
-  # Race condition yok, tüm dosyalar bir arada
-  # ─────────────────────────────────────────────────────────────
   release:
     name: Create GitHub Release
     needs: build
