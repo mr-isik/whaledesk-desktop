@@ -23,7 +23,7 @@ func main() {
 
 	dockerClient, err := docker.NewDockerClient()
 	if err != nil {
-		log.Fatalf("Failed to initialize Docker client: %v", err)
+		log.Printf("Warning: Docker client not available: %v", err)
 	}
 
 	dbClient, err := database.NewSQLiteDB("whaledesk.db")
