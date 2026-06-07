@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -19,6 +21,21 @@ import (
 
 var assets embed.FS
 
+func getDBPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir, err = os.UserHomeDir()
+		if err != nil {
+			configDir = "."
+		}
+	}
+	appDir := filepath.Join(configDir, "whaledesk")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		log.Printf("Warning: Failed to create app config dir: %v", err)
+	}
+	return filepath.Join(appDir, "whaledesk.db")
+}
+
 func main() {
 
 	dockerClient, err := docker.NewDockerClient()
@@ -26,9 +43,10 @@ func main() {
 		log.Printf("Warning: Docker client not available: %v", err)
 	}
 
-	dbClient, err := database.NewSQLiteDB("whaledesk.db")
+	dbPath := getDBPath()
+	dbClient, err := database.NewSQLiteDB(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize SQLite database: %v", err)
+		log.Fatalf("Failed to initialize SQLite database at %s: %v", dbPath, err)
 	}
 
 	httpClient := httpclient.NewHTTPClient()
