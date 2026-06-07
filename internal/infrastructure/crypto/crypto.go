@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/zalando/go-keyring"
 )
@@ -103,8 +104,36 @@ func loadOrCreateKey() ([]byte, error) {
 
 	encoded = base64.StdEncoding.EncodeToString(key)
 	if setErr := keyring.Set(keyringService, keyringUser, encoded); setErr != nil {
-		return nil, fmt.Errorf("crypto: failed to save key to keyring: %w", setErr)
+		// Fallback to storing the key in the user config directory
+		fallbackKeyPath, pathErr := getFallbackKeyPath()
+		if pathErr == nil {
+			// Check if fallback key already exists
+			if existingKeyBytes, readErr := os.ReadFile(fallbackKeyPath); readErr == nil {
+				if existingKey, decErr := base64.StdEncoding.DecodeString(string(existingKeyBytes)); decErr == nil && len(existingKey) == 32 {
+					return existingKey, nil
+				}
+			}
+			// Write the newly generated key to fallback file
+			_ = os.WriteFile(fallbackKeyPath, []byte(encoded), 0600)
+			return key, nil
+		}
+		return nil, fmt.Errorf("crypto: failed to save key to keyring and fallback failed: %w", setErr)
 	}
 
 	return key, nil
+}
+
+func getFallbackKeyPath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir, err = os.UserHomeDir()
+		if err != nil {
+			configDir = "."
+		}
+	}
+	appDir := filepath.Join(configDir, "whaledesk")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		return "", err
+	}
+	return filepath.Join(appDir, "encryption.key"), nil
 }
