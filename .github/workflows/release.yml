@@ -56,6 +56,14 @@ jobs:
             libwebkit2gtk-4.1-dev \
             dpkg-dev
 
+      - name: Install NSIS
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          makensis /VERSION
+
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: npm ci
