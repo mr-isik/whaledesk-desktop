@@ -24,7 +24,7 @@ jobs:
 
           - os: windows-latest
             platform: windows/amd64
-            wails_flags: ""
+            wails_flags: "-nsis"
 
           - os: macos-latest
             platform: darwin/universal
@@ -167,9 +167,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $src = Get-ChildItem -Path build\bin -Filter "*.exe" | Select-Object -First 1
-          if (-not $src) { Write-Error "EXE not found!"; exit 1 }
-          Rename-Item -Path $src.FullName -NewName "whaledesk-windows-amd64.exe"
+          $src = Get-ChildItem -Path build\bin -Filter "*-installer.exe" | Select-Object -First 1
+          if (-not $src) { Write-Error "Installer EXE not found!"; exit 1 }
+          Rename-Item -Path $src.FullName -NewName "whaledesk-windows-amd64-setup.exe"
 
       - name: Upload artifact – Linux
         if: runner.os == 'Linux'
@@ -194,7 +194,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-package
-          path: build/bin/whaledesk-windows-amd64.exe
+          path: build/bin/whaledesk-windows-amd64-setup.exe
           if-no-files-found: error
 
   release:
@@ -222,6 +222,6 @@ jobs:
             release-files/whaledesk-linux-amd64.tar.gz
             release-files/*.deb
             release-files/whaledesk-mac-universal.zip
-            release-files/whaledesk-windows-amd64.exe
+            release-files/whaledesk-windows-amd64-setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

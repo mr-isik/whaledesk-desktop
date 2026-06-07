@@ -19,6 +19,7 @@ import (
 	"whaledesk-desktop/internal/usecase"
 )
 
+//go:embed all:frontend/dist
 var assets embed.FS
 
 func getDBPath() string {
