@@ -50,7 +50,7 @@
 }
 
 [data-theme="light"] {
-  --bg-primary: #000000;
+  --bg-primary: #f4f5f8;
   --bg-secondary: #ffffff;
   --bg-tertiary: #eff1f4;
   --bg-hover: rgba(0, 0, 0, 0.035);
